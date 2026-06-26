@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AP Validation — BNI → Accurate Online</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['Plus Jakarta Sans','ui-sans-serif'],mono:['JetBrains Mono','ui-monospace']}}}}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#fafafa;color:#18181b;-webkit-font-smoothing:antialiased}
+.screen{min-height:calc(100vh - 44px);transition:opacity .22s ease,transform .22s ease}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.skeleton{background:#e4e4e7;border-radius:4px;animation:pulse 1.5s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .75s linear infinite}
+.prog-track{height:4px;background:#e4e4e7;border-radius:9999px;overflow:hidden}
+.prog-fill{height:100%;background:#18181b;border-radius:9999px;transition:width .08s linear;width:0}
+/* tabs */
+.tab{padding:9px 14px;font-size:13px;font-weight:500;color:#71717a;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;white-space:nowrap;transition:color .1s,border-color .1s;font-family:inherit}
+.tab:hover{color:#18181b}.tab.active{color:#18181b;border-bottom-color:#18181b}
+.tab:focus-visible{outline:2px solid #18181b;outline-offset:2px;border-radius:3px}
+/* table */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{padding:10px 12px;font-size:11px;font-weight:600;color:#71717a;border-bottom:1px solid #e4e4e7;text-align:left;text-transform:uppercase;letter-spacing:.05em;background:#fafafa;white-space:nowrap}
+.tbl td{padding:10px 12px;font-size:13px;border-bottom:1px solid #f4f4f5;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tbody tr:hover td{background:#fafafa}
+.tbl th:first-child,.tbl td:first-child{padding-left:16px}
+.tbl th:last-child,.tbl td:last-child{padding-right:16px}
+/* badges */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:9999px;font-size:11px;font-weight:500;border:1px solid;white-space:nowrap}
+.b-neutral{background:#f4f4f5;color:#52525b;border-color:#e4e4e7}
+.b-teal{background:#f0fdfa;color:#0f766e;border-color:#99f6e4}
+.b-amber{background:#fffbeb;color:#92400e;border-color:#fde68a}
+/* endpoint pill */
+.ep{display:inline-flex;align-items:center;padding:1px 7px;border-radius:4px;font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:500;border:1px solid;white-space:nowrap}
+.ep-pp{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+.ep-op{background:#fdf4ff;color:#7e22ce;border-color:#e9d5ff}
+.ep-bt{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+/* buttons */
+.btn{padding:7px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:none;transition:background .1s}
+.btn:focus-visible{outline:2px solid #18181b;outline-offset:2px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-dark{background:#18181b;color:#fff}.btn-dark:hover:not(:disabled){background:#3f3f46}
+.btn-outline{background:#fff;color:#18181b;border:1px solid #e4e4e7}.btn-outline:hover{background:#f4f4f5}
+/* inline push button in table */
+.btn-push-row{padding:4px 11px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;background:#18181b;color:#fff;border:none;transition:background .1s;white-space:nowrap}
+.btn-push-row:hover:not(:disabled){background:#3f3f46}
+.btn-push-row:disabled{opacity:.5;cursor:not-allowed}
+.btn-push-row:focus-visible{outline:2px solid #18181b;outline-offset:2px}
+/* drawer */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+.overlay.open{opacity:1;pointer-events:all}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:520px;background:#fff;border-left:1px solid #e4e4e7;transform:translateX(100%);transition:transform .25s cubic-bezier(0,0,.2,1);z-index:50;overflow-y:auto;display:flex;flex-direction:column}
+.drawer.open{transform:translateX(0)}
+body.no-scroll{overflow:hidden}
+/* toast */
+#toasts{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column-reverse;gap:8px;pointer-events:none}
+.toast{background:#18181b;color:#fafafa;padding:11px 16px;border-radius:8px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.18);pointer-events:all;display:flex;align-items:center;gap:8px;opacity:0;transform:translateY(6px);transition:opacity .2s ease,transform .2s ease;max-width:320px}
+.toast.show{opacity:1;transform:translateY(0)}
+/* floating bar */
+#fbar{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(72px);background:#18181b;color:#fff;border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.22);z-index:30;opacity:0;transition:transform .25s cubic-bezier(0,0,.2,1),opacity .25s ease;pointer-events:none;white-space:nowrap}
+#fbar.show{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:all}
+/* checkbox */
+input[type=checkbox]{width:14px;height:14px;border:1.5px solid #d4d4d8;border-radius:3px;appearance:none;cursor:pointer;position:relative;background:#fff;transition:background .1s,border-color .1s;flex-shrink:0}
+input[type=checkbox]:checked{background:#18181b;border-color:#18181b}
+input[type=checkbox]:checked::after{content:'';position:absolute;top:1px;left:4px;width:4px;height:7px;border:2px solid #fff;border-top:none;border-left:none;transform:rotate(45deg)}
+input[type=checkbox]:disabled{opacity:.35;cursor:not-allowed}
+input[type=checkbox]:focus-visible{outline:2px solid #18181b;outline-offset:2px}
+/* search */
+.search{height:32px;padding:0 10px 0 32px;border:1px solid #e4e4e7;border-radius:6px;font-size:13px;font-family:inherit;background:#fff;color:#18181b;outline:none;width:200px;transition:border-color .1s,box-shadow .1s}
+.search:focus{border-color:#a1a1aa;box-shadow:0 0 0 3px rgba(0,0,0,.06)}
+/* detail KV */
+.kv{display:flex;align-items:flex-start;gap:12px;padding:8px 0;border-bottom:1px solid #f4f4f5;font-size:13px}
+.kv:last-child{border-bottom:none}
+.kv-label{color:#71717a;min-width:140px;flex-shrink:0}
+.kv-val{color:#18181b;font-weight:500;word-break:break-all}
+/* COA mapping table in drawer */
+.coa-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.coa-tbl th{padding:7px 10px;font-size:10px;font-weight:600;color:#71717a;background:#fafafa;border-bottom:1px solid #e4e4e7;text-transform:uppercase;letter-spacing:.04em;text-align:left}
+.coa-tbl td{padding:8px 10px;border-bottom:1px solid #f4f4f5;vertical-align:middle}
+.coa-tbl tr:last-child td{border-bottom:none}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#d4d4d8;border-radius:9999px}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header style="position:fixed;top:0;left:0;right:0;z-index:20;height:44px;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-bottom:1px solid #f4f4f5;display:flex;align-items:center;justify-content:space-between;padding:0 24px">
+  <div style="display:flex;align-items:center;gap:8px">
+    <div style="width:20px;height:20px;background:#18181b;border-radius:5px;display:grid;place-items:center">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1 9 5 5 9 1 5Z" fill="white"/></svg>
+    </div>
+    <span style="font-size:13px;font-weight:600;color:#18181b">AP Validation</span>
+    <span style="font-size:11px;color:#a1a1aa;background:#f4f4f5;padding:1px 7px;border-radius:9999px">mockup</span>
+  </div>
+  <button onclick="resetDemo()" style="font-size:12px;color:#71717a;background:none;border:1px solid #e4e4e7;padding:4px 11px;border-radius:5px;cursor:pointer;font-family:inherit;transition:background .1s" onmouseover="this.style.background='#f4f4f5'" onmouseout="this.style.background='none'" aria-label="Reset demo">↺ Reset demo</button>
+</header>
+
+<div style="padding-top:44px">
+
+<!-- STATE 1 · Upload -->
+<div id="s-upload" class="screen" style="display:flex;align-items:center;justify-content:center;padding:48px 24px">
+  <div style="max-width:460px;width:100%;text-align:center">
+    <p style="font-size:11px;color:#a1a1aa;font-weight:500;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">e-Statement BNI → Accurate Online</p>
+    <h1 style="font-size:22px;font-weight:600;color:#18181b;margin-bottom:6px">AP Validation</h1>
+    <p style="font-size:14px;color:#71717a;margin-bottom:32px">Upload mutasi rekening BNI untuk deteksi otomatis transaksi AP.</p>
+    <div id="dropzone" onclick="startUpload()" style="border:1.5px dashed #d4d4d8;border-radius:14px;padding:48px 32px;background:#fff;cursor:pointer;transition:border-color .15s,background .15s" onmouseenter="this.style.borderColor='#a1a1aa';this.style.background='#fafafa'" onmouseleave="this.style.borderColor='#d4d4d8';this.style.background='#fff'">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5" style="margin:0 auto 14px;display:block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <p style="font-size:14px;font-weight:500;color:#18181b;margin-bottom:4px">Upload e-statement BNI</p>
+      <p style="font-size:12px;color:#a1a1aa;margin-bottom:20px">.xlsx / .xls — drag & drop atau klik untuk pilih</p>
+      <button class="btn btn-dark" onclick="event.stopPropagation();startUpload()" aria-label="Pilih file">Pilih File</button>
+    </div>
+    <div id="file-tag" style="margin-top:12px;opacity:0;transition:opacity .3s;display:flex;align-items:center;justify-content:center;gap:6px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      <span style="font-size:12px;color:#52525b;font-family:'JetBrains Mono',monospace">Rekening_Koran_BNI_April2026.xlsx</span>
+    </div>
+  </div>
+</div>
+
+<!-- STATE 2 · Processing -->
+<div id="s-processing" class="screen" style="display:none;align-items:center;justify-content:center;padding:48px 24px">
+  <div style="max-width:400px;width:100%;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:18px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span style="font-size:12px;color:#52525b;font-family:'JetBrains Mono',monospace">Rekening_Koran_BNI_April2026.xlsx</span>
+    </div>
+    <div id="phase-upload">
+      <div style="display:flex;justify-content:space-between;margin-bottom:7px">
+        <span style="font-size:12px;color:#71717a">Mengupload file...</span>
+        <span id="prog-pct" style="font-size:12px;color:#71717a;font-family:'JetBrains Mono',monospace">0%</span>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+    </div>
+    <div id="phase-analyze" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <div style="width:14px;height:14px;border:2px solid #18181b;border-top-color:transparent;border-radius:50%" class="spin"></div>
+        <span style="font-size:13px;color:#52525b">Menganalisis description transaksi...</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:8px"><div class="skeleton" style="width:42px;height:11px;flex-shrink:0"></div><div class="skeleton" style="flex:1;height:11px"></div><div class="skeleton" style="width:64px;height:11px;flex-shrink:0"></div></div>
+        <div style="display:flex;gap:8px"><div class="skeleton" style="width:42px;height:11px;flex-shrink:0"></div><div class="skeleton" style="flex:1;height:11px"></div><div class="skeleton" style="width:80px;height:11px;flex-shrink:0"></div></div>
+        <div style="display:flex;gap:8px"><div class="skeleton" style="width:42px;height:11px;flex-shrink:0"></div><div class="skeleton" style="flex:1;height:11px"></div><div class="skeleton" style="width:52px;height:11px;flex-shrink:0"></div></div>
+        <div style="display:flex;gap:8px"><div class="skeleton" style="width:42px;height:11px;flex-shrink:0"></div><div class="skeleton" style="flex:1;height:11px"></div><div class="skeleton" style="width:70px;height:11px;flex-shrink:0"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATE 3 · Summary -->
+<div id="s-summary" class="screen" style="display:none;align-items:center;justify-content:center;padding:48px 24px">
+  <div style="max-width:540px;width:100%">
+    <div style="text-align:center;margin-bottom:28px">
+      <span style="display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:9999px;padding:3px 11px;font-size:11px;font-weight:500;margin-bottom:10px">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Analisis selesai
+      </span>
+      <h2 style="font-size:20px;font-weight:600;color:#18181b;margin-bottom:4px">Rekap Transaksi</h2>
+      <p style="font-size:13px;color:#71717a">Rekening_Koran_BNI_April2026.xlsx · <span id="s-total-rows"></span> baris terdeteksi</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div style="background:#fff;border:1px solid #e4e4e7;border-radius:10px;padding:20px">
+        <p style="font-size:11px;color:#71717a;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Total Transaksi</p>
+        <p id="s-total" style="font-size:30px;font-weight:700;color:#18181b;line-height:1"></p>
+        <p id="s-amount" style="font-size:11px;color:#a1a1aa;margin-top:4px;font-family:'JetBrains Mono',monospace"></p>
+      </div>
+      <div style="background:#fff;border:1px solid #e4e4e7;border-radius:10px;padding:20px">
+        <p style="font-size:11px;color:#52525b;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Sudah di Accurate</p>
+        <p id="s-sudah" style="font-size:30px;font-weight:700;color:#52525b;line-height:1"></p>
+        <p style="font-size:11px;color:#a1a1aa;margin-top:4px">Tidak perlu aksi</p>
+      </div>
+      <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:20px">
+        <p style="font-size:11px;color:#0f766e;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Akan di-push</p>
+        <p id="s-akan" style="font-size:30px;font-weight:700;color:#0f766e;line-height:1"></p>
+        <p style="font-size:11px;color:#5eead4;margin-top:4px">Siap dikirim ke Accurate</p>
+      </div>
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:20px">
+        <p style="font-size:11px;color:#92400e;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Perlu Review</p>
+        <p id="s-review" style="font-size:30px;font-weight:700;color:#b45309;line-height:1"></p>
+        <p style="font-size:11px;color:#fbbf24;margin-top:4px">Input manual diperlukan</p>
+      </div>
+    </div>
+    <button class="btn btn-dark" onclick="goDetail()" style="width:100%;padding:12px;font-size:14px" aria-label="Lihat detail tabel transaksi">Lihat detail transaksi →</button>
+  </div>
+</div>
+
+<!-- STATE 4 · Detail -->
+<div id="s-detail" class="screen" style="display:none;padding:24px">
+  <div style="max-width:1240px;margin:0 auto">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <h2 style="font-size:16px;font-weight:600;color:#18181b">Detail Transaksi</h2>
+        <p style="font-size:12px;color:#71717a;margin-top:2px">Rekening_Koran_BNI_April2026.xlsx · April 2026</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;background:#fffbeb;color:#92400e;border:1px solid #fde68a;border-radius:9999px;padding:2px 10px;font-weight:500">Demo · Data Dummy</span>
+        <!-- Legend -->
+        <div style="display:flex;align-items:center;gap:10px;font-size:11px;color:#71717a;border:1px solid #e4e4e7;border-radius:6px;padding:5px 10px;background:#fff">
+          <span style="display:flex;align-items:center;gap:4px"><span class="ep ep-pp">purchase-payment</span> Pembayaran Invoice</span>
+          <span style="color:#d4d4d8">·</span>
+          <span style="display:flex;align-items:center;gap:4px"><span class="ep ep-op">other-payment</span> Biaya Ops</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs + search -->
+    <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e4e4e7;flex-wrap:wrap;gap:8px" role="tablist">
+      <div style="display:flex">
+        <button class="tab active" onclick="setTab(this,'semua')" role="tab" aria-selected="true" id="tab-semua">Semua</button>
+        <button class="tab" onclick="setTab(this,'sudah_tercatat')" role="tab" aria-selected="false" id="tab-sudah">Sudah di Accurate</button>
+        <button class="tab" onclick="setTab(this,'akan_dipush')" role="tab" aria-selected="false" id="tab-akan">Akan di-push</button>
+        <button class="tab" onclick="setTab(this,'perlu_review')" role="tab" aria-selected="false" id="tab-review">Perlu review</button>
+      </div>
+      <div style="position:relative;padding-bottom:8px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-57%);pointer-events:none"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="search" class="search" placeholder="Cari description..." oninput="renderTable()" aria-label="Cari transaksi" />
+      </div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #e4e4e7;border-top:none;border-radius:0 0 10px 10px;overflow:hidden">
+      <div id="tbl-wrap" style="overflow-x:auto"></div>
+      <div id="tbl-empty" style="display:none;padding:48px;text-align:center">
+        <p style="font-size:14px;color:#a1a1aa">Tidak ada transaksi yang cocok.</p>
+        <button onclick="document.getElementById('search').value='';setTab(document.getElementById('tab-semua'),'semua')" style="font-size:12px;color:#71717a;background:none;border:none;cursor:pointer;text-decoration:underline;margin-top:6px;font-family:inherit">Reset filter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /screen wrapper -->
+
+<!-- DRAWER -->
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Detail transaksi">
+  <div style="padding:18px 20px;border-bottom:1px solid #f4f4f5;position:sticky;top:0;background:#fff;z-index:10;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+    <div>
+      <p style="font-size:13px;font-weight:600;color:#18181b" id="d-title">Detail</p>
+      <p style="font-size:18px;font-weight:600;margin-top:2px" id="d-amount"></p>
+    </div>
+    <button onclick="closeDrawer()" style="padding:6px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#71717a;flex-shrink:0;transition:background .1s" onmouseover="this.style.background='#f4f4f5'" onmouseout="this.style.background='#fff'" aria-label="Tutup panel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div id="d-body" style="padding:20px;flex:1"></div>
+</div>
+
+<!-- FLOATING BAR -->
+<div id="fbar" role="status" aria-live="polite">
+  <span id="fbar-txt">0 dipilih</span>
+  <button onclick="pushSelected()" style="background:#fff;color:#18181b;font-size:12px;padding:6px 14px;border-radius:6px;border:none;font-weight:600;cursor:pointer;transition:background .1s" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#fff'" aria-label="Push terpilih">Push ke Accurate</button>
+  <button onclick="clearSel()" style="background:transparent;color:rgba(255,255,255,.65);border:1px solid rgba(255,255,255,.2);font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:inherit;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'" aria-label="Batalkan pilihan">Batalkan</button>
+</div>
+
+<!-- TOASTS -->
+<div id="toasts" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────
+// accurate_module = nama modul di Accurate Online
+// accurate_endpoint = endpoint API yang dipanggil
+// coa_debit / coa_credit = jurnal yang akan dibuat
+const ORIG = [
+  {
+    no:1, post_date:"01/04/2026 08:10:05",
+    description_raw:"TRF/PAY/SUPPLIER | 1234567890 | PT SUMBER MAKMUR JAYA | PELUNASAN HUTANG DAGANG / Inv/2026/03/28/204501234",
+    display_label:"Invoice 204501234", amount:18500000, db_cr:"D",
+    detected_invoice_no:"204501234", detected_vendor:"PT Sumber Makmur Jaya", detected_keyword:null,
+    coa_debit:"Hutang Usaha", coa_credit:"Kas/Bank BNI",
+    accurate_module:"Pembayaran Pembelian", accurate_endpoint:"purchase-payment",
+    status:"sudah_tercatat"
+  },
+  {
+    no:2, post_date:"01/04/2026 10:00:00",
+    description_raw:"TRF/PAY/SUPPLIER | 1122334455 | PT KARYA MANDIRI | PELUNASAN INVOICE / Inv/2026/04/01/192837800",
+    display_label:"Invoice 192837800", amount:12000000, db_cr:"D",
+    detected_invoice_no:"192837800", detected_vendor:"PT Karya Mandiri", detected_keyword:null,
+    coa_debit:"Hutang Usaha", coa_credit:"Kas/Bank BNI",
+    accurate_module:"Pembayaran Pembelian", accurate_endpoint:"purchase-payment",
+    status:"sudah_tercatat"
+  },
+  {
+    no:3, post_date:"01/04/2026 06:24:32",
+    description_raw:"TRF/PAY/TOP-UP ECHANNEL | 6010043330000011 | BNI DIRECT | BILL PAYMENT (PLN PREPAID) NO :86026222603 / Inv/2025/04/01/192837812",
+    display_label:"Invoice 192837812", amount:500000, db_cr:"D",
+    detected_invoice_no:"192837812", detected_vendor:null, detected_keyword:null,
+    coa_debit:"Hutang Usaha", coa_credit:"Kas/Bank BNI",
+    accurate_module:"Pembayaran Pembelian", accurate_endpoint:"purchase-payment",
+    status:"akan_dipush"
+  },
+  {
+    no:4, post_date:"01/04/2026 09:15:44",
+    description_raw:"TRF/PAY/SUPPLIER | 9876543210 | CV MITRA TEKNIK UTAMA | PEMBAYARAN INVOICE / Inv/2026/03/30/204509876",
+    display_label:"Invoice 204509876", amount:7200000, db_cr:"D",
+    detected_invoice_no:"204509876", detected_vendor:"CV Mitra Teknik Utama", detected_keyword:null,
+    coa_debit:"Hutang Usaha", coa_credit:"Kas/Bank BNI",
+    accurate_module:"Pembayaran Pembelian", accurate_endpoint:"purchase-payment",
+    status:"akan_dipush"
+  },
+  {
+    no:5, post_date:"02/04/2026 11:20:33",
+    description_raw:"TRF/PAY/SUPPLIER | 5544332211 | PT INDAH LOGISTIK | PEMBAYARAN INV / Inv/2026/04/02/205001122",
+    display_label:"Invoice 205001122", amount:25000000, db_cr:"D",
+    detected_invoice_no:"205001122", detected_vendor:"PT Indah Logistik", detected_keyword:null,
+    coa_debit:"Hutang Usaha", coa_credit:"Kas/Bank BNI",
+    accurate_module:"Pembayaran Pembelian", accurate_endpoint:"purchase-payment",
+    status:"akan_dipush"
+  },
+  {
+    no:6, post_date:"02/04/2026 09:45:00",
+    description_raw:"TRF/PAY/SUPPLIER | 7788990011 | CV BINTANG SEJAHTERA | PELUNASAN HUTANG / Inv/2026/04/01/205001189",
+    display_label:"Invoice 205001189", amount:6750000, db_cr:"D",
+    detected_invoice_no:"205001189", detected_vendor:"CV Bintang Sejahtera", detected_keyword:null,
+    coa_debit:"Hutang Usaha", coa_credit:"Kas/Bank BNI",
+    accurate_module:"Pembayaran Pembelian", accurate_endpoint:"purchase-payment",
+    status:"akan_dipush"
+  },
+  {
+    no:7, post_date:"02/04/2026 07:30:00",
+    description_raw:"BIAYA ADMIN BANK BULAN APRIL 2026",
+    display_label:"Admin Bank (April 2026)", amount:15000, db_cr:"D",
+    detected_invoice_no:null, detected_vendor:null, detected_keyword:"admin bank",
+    coa_debit:"Beban Admin Bank", coa_credit:"Kas/Bank BNI",
+    accurate_module:"Pengeluaran Kas/Bank Lain", accurate_endpoint:"other-payment",
+    status:"akan_dipush"
+  },
+  {
+    no:8, post_date:"02/04/2026 08:00:00",
+    description_raw:"TRF/PAY/TOP-UP ECHANNEL | 6010043330000099 | BNI DIRECT | BILL PAYMENT (PLN PREPAID) NO :86026229900",
+    display_label:"Token Listrik (PLN Prepaid)", amount:300000, db_cr:"D",
+    detected_invoice_no:null, detected_vendor:null, detected_keyword:"pln prepaid",
+    coa_debit:"Beban Token Listrik", coa_credit:"Kas/Bank BNI",
+    accurate_module:"Pengeluaran Kas/Bank Lain", accurate_endpoint:"other-payment",
+    status:"akan_dipush"
+  },
+  {
+    no:9, post_date:"02/04/2026 09:45:10",
+    description_raw:"PEMINDAHBUKUAN KE REK 0087654321 BCA - TRANSFER INTERNAL KAS KECIL",
+    display_label:"Transfer internal (rekening BCA)", amount:10000000, db_cr:"D",
+    detected_invoice_no:null, detected_vendor:null, detected_keyword:null,
+    coa_debit:null, coa_credit:null,
+    accurate_module:null, accurate_endpoint:null,
+    status:"perlu_review"
+  },
+  {
+    no:10, post_date:"03/04/2026 13:00:00",
+    description_raw:"20260403 SETOR TUNAI COUNTER BNI CABANG JAKARTA SELATAN - REF 998877665544",
+    display_label:"20260403 SETOR TUNAI COUNTER BNI CABA…", amount:5000000, db_cr:"C",
+    detected_invoice_no:null, detected_vendor:null, detected_keyword:null,
+    coa_debit:null, coa_credit:null,
+    accurate_module:null, accurate_endpoint:null,
+    status:"perlu_review"
+  },
+];
+
+let txs = ORIG.map(t=>({...t}));
+
+// ─── STATE ───────────────────────────────────────────
+let cur='upload', curTab='semua', sel=new Set();
+
+function goTo(next){
+  const o=document.getElementById('s-'+cur);
+  o.style.transition='opacity .2s ease,transform .2s ease';
+  o.style.opacity='0'; o.style.transform='translateY(6px)';
+  setTimeout(()=>{
+    o.style.display='none';
+    const n=document.getElementById('s-'+next);
+    n.style.display=next==='detail'?'block':'flex';
+    n.style.opacity='0'; n.style.transform='translateY(10px)'; n.style.transition='none';
+    n.offsetHeight;
+    n.style.transition='opacity .25s ease,transform .25s ease';
+    n.style.opacity='1'; n.style.transform='translateY(0)';
+    cur=next;
+    if(next==='detail') setTimeout(renderTable,30);
+  },200);
+}
+
+// ─── UPLOAD FLOW ─────────────────────────────────────
+function startUpload(){
+  document.getElementById('file-tag').style.opacity='1';
+  setTimeout(()=>{ goTo('processing'); setTimeout(runProgress,300); },550);
+}
+function runProgress(){
+  let p=0;
+  const fill=document.getElementById('prog-fill'), pct=document.getElementById('prog-pct');
+  const iv=setInterval(()=>{
+    p+=Math.random()*9+3;
+    if(p>=100){p=100;clearInterval(iv);onDone();}
+    fill.style.width=p+'%'; pct.textContent=Math.floor(p)+'%';
+  },75);
+}
+function onDone(){
+  setTimeout(()=>{
+    document.getElementById('phase-upload').style.display='none';
+    document.getElementById('phase-analyze').style.display='block';
+    setTimeout(()=>{ fillSummary(); goTo('summary'); },1400);
+  },350);
+}
+function fillSummary(){
+  const total=txs.length, sudah=txs.filter(t=>t.status==='sudah_tercatat').length,
+        akan=txs.filter(t=>t.status==='akan_dipush').length, review=txs.filter(t=>t.status==='perlu_review').length,
+        debit=txs.filter(t=>t.db_cr==='D').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('s-total-rows').textContent=total;
+  document.getElementById('s-total').textContent=total;
+  document.getElementById('s-amount').textContent=rp(debit);
+  document.getElementById('s-sudah').textContent=sudah;
+  document.getElementById('s-akan').textContent=akan;
+  document.getElementById('s-review').textContent=review;
+}
+function goDetail(){ goTo('detail'); }
+
+// ─── TABLE ───────────────────────────────────────────
+function setTab(btn,tab){
+  document.querySelectorAll('.tab').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});
+  btn.classList.add('active'); btn.setAttribute('aria-selected','true');
+  curTab=tab; sel.clear(); updBar(); renderTable();
+}
+function filtered(){
+  let list=curTab==='semua'?txs:txs.filter(t=>t.status===curTab);
+  const q=(document.getElementById('search')?.value||'').toLowerCase().trim();
+  if(q) list=list.filter(t=>t.description_raw.toLowerCase().includes(q)||t.display_label.toLowerCase().includes(q));
+  return list;
+}
+
+function epPill(endpoint){
+  if(!endpoint) return '<span style="color:#d4d4d8;font-size:11px">—</span>';
+  const cls={
+    'purchase-payment':'ep ep-pp',
+    'other-payment':'ep ep-op',
+    'bank-transfer':'ep ep-bt',
+  }[endpoint]||'ep';
+  return `<span class="${cls}">${endpoint}</span>`;
+}
+
+function renderTable(){
+  const list=filtered();
+  const wrap=document.getElementById('tbl-wrap'), empty=document.getElementById('tbl-empty');
+  if(!list.length){wrap.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+
+  let h=`<table class="tbl"><thead><tr>
+    <th style="width:40px"><input type="checkbox" id="chk-all" onchange="togAll(this)" aria-label="Pilih semua"></th>
+    <th style="width:34px">No</th>
+    <th style="width:100px">Tanggal</th>
+    <th>Description</th>
+    <th style="width:200px">COA Mapping</th>
+    <th style="width:140px">Accurate Module</th>
+    <th style="text-align:right;width:130px">Jumlah</th>
+    <th style="width:120px">Status</th>
+    <th style="width:100px;text-align:center">Aksi</th>
+  </tr></thead><tbody>`;
+
+  for(const t of list){
+    const bd=badge(t.status);
+    const chk=sel.has(t.no)?'checked':'';
+    const dis=t.status!=='akan_dipush'?'disabled':'';
+
+    // COA cell
+    const coaCell = t.coa_debit
+      ? `<div style="font-size:12px;color:#18181b;font-weight:500">${esc(t.coa_debit)}</div>
+         <div style="font-size:11px;color:#a1a1aa;margin-top:1px">↑ Dr &nbsp;·&nbsp; ${esc(t.coa_credit||'')} Cr</div>`
+      : `<span style="font-size:12px;color:#d4d4d8">Belum ditentukan</span>`;
+
+    // Module + endpoint cell
+    const moduleCell = t.accurate_module
+      ? `<div style="font-size:12px;color:#18181b;font-weight:500">${esc(t.accurate_module)}</div>
+         <div style="margin-top:3px">${epPill(t.accurate_endpoint)}</div>`
+      : `<span style="font-size:12px;color:#d4d4d8">—</span>`;
+
+    // Action cell
+    let actionCell='<span style="font-size:11px;color:#d4d4d8">—</span>';
+    if(t.status==='akan_dipush'){
+      actionCell=`<button class="btn-push-row" id="pr-${t.no}" onclick="event.stopPropagation();pushRow(${t.no})" aria-label="Push #${t.no}">Push</button>`;
+    } else if(t.status==='sudah_tercatat'){
+      actionCell=`<span style="font-size:11px;color:#22c55e;font-weight:500;display:flex;align-items:center;justify-content:center;gap:3px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Selesai</span>`;
+    } else if(t.status==='perlu_review'){
+      actionCell=`<span style="font-size:11px;color:#f59e0b;font-weight:500">Review dulu</span>`;
+    }
+
+    h+=`<tr data-no="${t.no}" style="cursor:pointer">
+      <td onclick="event.stopPropagation()"><input type="checkbox" ${chk} ${dis} onchange="togRow(this,${t.no})" aria-label="Pilih #${t.no}"></td>
+      <td style="color:#a1a1aa;font-size:12px;font-family:'JetBrains Mono',monospace">${t.no}</td>
+      <td style="color:#71717a;font-size:12px;font-family:'JetBrains Mono',monospace;white-space:nowrap">${t.post_date.slice(0,10)}</td>
+      <td>
+        <span style="font-size:13px;font-weight:500;color:#18181b">${esc(t.display_label)}</span>
+        <span style="display:block;font-size:11px;color:#a1a1aa;font-family:'JetBrains Mono',monospace;margin-top:2px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.description_raw)}</span>
+      </td>
+      <td>${coaCell}</td>
+      <td>${moduleCell}</td>
+      <td style="text-align:right;font-weight:500;font-family:'JetBrains Mono',monospace;white-space:nowrap;color:${t.db_cr==='D'?'#dc2626':'#16a34a'}">${t.db_cr==='D'?'−':'+'} ${rp(t.amount)}</td>
+      <td><span class="badge ${bd.cls}">${bd.lbl}</span></td>
+      <td style="text-align:center">${actionCell}</td>
+    </tr>`;
+  }
+  h+='</tbody></table>';
+  wrap.innerHTML=h;
+  wrap.querySelectorAll('tbody tr').forEach(row=>{
+    row.addEventListener('click',e=>{
+      if(e.target.type==='checkbox'||e.target.closest('.btn-push-row')) return;
+      openDrawer(+row.dataset.no);
+    });
+  });
+  syncAllChk();
+}
+
+function badge(s){
+  return {sudah_tercatat:{cls:'b-neutral',lbl:'Sudah di Accurate'},akan_dipush:{cls:'b-teal',lbl:'Akan di-push'},perlu_review:{cls:'b-amber',lbl:'Perlu review'}}[s];
+}
+
+// ─── CHECKBOXES ──────────────────────────────────────
+function togRow(cb,no){cb.checked?sel.add(no):sel.delete(no);syncAllChk();updBar();}
+function togAll(cb){
+  filtered().filter(t=>t.status==='akan_dipush').forEach(t=>cb.checked?sel.add(t.no):sel.delete(t.no));
+  updBar(); renderTable();
+}
+function syncAllChk(){
+  const ca=document.getElementById('chk-all'); if(!ca) return;
+  const s=filtered().filter(t=>t.status==='akan_dipush');
+  const n=s.filter(t=>sel.has(t.no)).length;
+  ca.indeterminate=n>0&&n<s.length; ca.checked=s.length>0&&n===s.length;
+}
+function updBar(){
+  const bar=document.getElementById('fbar');
+  document.getElementById('fbar-txt').textContent=sel.size+' transaksi dipilih';
+  sel.size>0?bar.classList.add('show'):bar.classList.remove('show');
+}
+function clearSel(){sel.clear();updBar();renderTable();}
+function pushSelected(){
+  const ids=[...sel];
+  ids.forEach(no=>{const t=txs.find(x=>x.no===no);if(t)t.status='sudah_tercatat';});
+  sel.clear(); updBar(); renderTable(); fillSummary();
+  toast(`${ids.length} transaksi berhasil di-push ke Accurate Online.`,'success');
+}
+
+// ─── INLINE PUSH (per row) ────────────────────────────
+function pushRow(no){
+  const btn=document.getElementById('pr-'+no); if(!btn) return;
+  btn.disabled=true;
+  btn.innerHTML=`<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border:1.5px solid #fff;border-top-color:transparent;border-radius:50%;display:inline-block" class="spin"></span></span>`;
+  setTimeout(()=>{
+    const t=txs.find(x=>x.no===no); if(t) t.status='sudah_tercatat';
+    renderTable(); fillSummary();
+    toast(`Transaksi #${no} (${txs.find(x=>x.no===no)?.accurate_module||'—'}) berhasil di-push.`,'success');
+  },900);
+}
+
+// ─── DRAWER ──────────────────────────────────────────
+function openDrawer(no){
+  const t=txs.find(x=>x.no===no); if(!t) return;
+  document.getElementById('d-title').textContent=`Transaksi #${t.no} — ${t.display_label}`;
+  document.getElementById('d-amount').innerHTML=`<span style="color:${t.db_cr==='D'?'#dc2626':'#16a34a'}">${t.db_cr==='D'?'−':'+'} ${rp(t.amount)}</span> <span style="font-size:12px;color:#a1a1aa;font-weight:400">${t.post_date.slice(0,10)}</span>`;
+
+  const bd=badge(t.status);
+
+  // COA mapping table
+  const coaTable = t.coa_debit ? `
+    <div style="border:1px solid #e4e4e7;border-radius:8px;overflow:hidden;margin-bottom:16px">
+      <table class="coa-tbl">
+        <thead><tr><th>Posisi</th><th>Akun (COA)</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span style="font-size:11px;font-weight:600;color:#dc2626;background:#fef2f2;padding:1px 7px;border-radius:9999px;border:1px solid #fecaca">Debit</span></td>
+            <td style="font-weight:500;color:#18181b">${esc(t.coa_debit)}</td>
+            <td style="color:#71717a">${t.detected_invoice_no?'Melunasi hutang ke supplier':'Mencatat beban'}</td>
+          </tr>
+          <tr>
+            <td><span style="font-size:11px;font-weight:600;color:#16a34a;background:#f0fdf4;padding:1px 7px;border-radius:9999px;border:1px solid #bbf7d0">Kredit</span></td>
+            <td style="font-weight:500;color:#18181b">${esc(t.coa_credit||'—')}</td>
+            <td style="color:#71717a">Kas keluar dari rekening BNI</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>` : `<div style="background:#f4f4f5;border-radius:8px;padding:10px 12px;font-size:12px;color:#71717a;margin-bottom:16px">COA belum bisa ditentukan — perlu review manual.</div>`;
+
+  // Accurate target
+  const targetBox = t.accurate_module ? `
+    <div style="background:#f8fafc;border:1px solid #e4e4e7;border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+      <div style="flex:1">
+        <p style="font-size:11px;color:#71717a;margin-bottom:2px">Modul Accurate Online</p>
+        <p style="font-size:13px;font-weight:600;color:#18181b">${esc(t.accurate_module)}</p>
+      </div>
+      <div style="text-align:right">
+        <p style="font-size:11px;color:#71717a;margin-bottom:3px">Endpoint API</p>
+        ${epPill(t.accurate_endpoint)}
+      </div>
+    </div>` : '';
+
+  // Action
+  let action='';
+  if(t.status==='akan_dipush'){
+    action=`<button class="btn btn-dark" id="push-d-${t.no}" onclick="pushDrawer(${t.no})" style="width:100%" aria-label="Push ke Accurate">Push ke Accurate</button>`;
+  } else if(t.status==='perlu_review'){
+    action=`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#92400e">Tidak ada sinyal terdeteksi. Tandai direview untuk melanjutkan.</div>
+    <button class="btn btn-outline" onclick="reviewDrawer(${t.no})" style="width:100%" aria-label="Tandai direview">Tandai sudah direview</button>`;
+  } else {
+    action=`<div style="background:#f4f4f5;border-radius:8px;padding:12px;font-size:13px;color:#52525b">Transaksi ini sudah tercatat di Accurate Online. Tidak ada aksi yang diperlukan.</div>`;
+  }
+
+  document.getElementById('d-body').innerHTML=`
+    <div style="margin-bottom:16px"><span class="badge ${bd.cls}">${bd.lbl}</span></div>
+
+    <p style="font-size:11px;color:#a1a1aa;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Raw Description</p>
+    <div style="background:#18181b;border-radius:8px;padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#d4d4d8;line-height:1.7;word-break:break-all;margin-bottom:16px">${esc(t.description_raw)}</div>
+
+    <p style="font-size:11px;color:#a1a1aa;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Hasil Parsing</p>
+    <div style="border:1px solid #f4f4f5;border-radius:8px;padding:4px 14px;margin-bottom:16px">
+      ${kv('No. Invoice',t.detected_invoice_no,true)}
+      ${kv('Vendor',t.detected_vendor,false)}
+      ${kv('Keyword',t.detected_keyword,true)}
+    </div>
+
+    <p style="font-size:11px;color:#a1a1aa;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">COA Mapping</p>
+    ${coaTable}
+
+    <p style="font-size:11px;color:#a1a1aa;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Target di Accurate</p>
+    ${targetBox || `<div style="background:#f4f4f5;border-radius:8px;padding:10px 12px;font-size:12px;color:#71717a;margin-bottom:16px">Belum ditentukan — perlu input manual.</div>`}
+
+    <p style="font-size:11px;color:#a1a1aa;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Aksi</p>
+    ${action}`;
+
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+  document.body.classList.add('no-scroll');
+}
+
+function kv(label,val,mono){
+  const v=val?`<span style="${mono?'font-family:\'JetBrains Mono\',monospace;font-size:12px':''}">${esc(val)}</span>`:`<span style="color:#d4d4d8">—</span>`;
+  return `<div class="kv"><span class="kv-label">${label}</span><span class="kv-val">${v}</span></div>`;
+}
+
+function closeDrawer(){
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+  document.body.classList.remove('no-scroll');
+}
+
+function pushDrawer(no){
+  const btn=document.getElementById('push-d-'+no); if(!btn) return;
+  btn.disabled=true;
+  btn.innerHTML=`<span style="display:inline-flex;align-items:center;gap:7px"><span style="width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;display:inline-block" class="spin"></span>Memproses...</span>`;
+  setTimeout(()=>{
+    const t=txs.find(x=>x.no===no); if(t) t.status='sudah_tercatat';
+    renderTable(); fillSummary(); closeDrawer();
+    toast(`${t?.accurate_module||'Transaksi'} #${no} berhasil di-push ke Accurate.`,'success');
+  },950);
+}
+
+function reviewDrawer(no){
+  const t=txs.find(x=>x.no===no); if(t) t.status='akan_dipush';
+  renderTable(); fillSummary(); closeDrawer();
+  toast('Ditandai sudah direview — siap di-push.','success');
+}
+
+// ─── TOAST ───────────────────────────────────────────
+function toast(msg,type='success'){
+  const c=document.getElementById('toasts');
+  const el=document.createElement('div');
+  el.className='toast';
+  el.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${type==='success'?'#4ade80':'#60a5fa'}" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>${esc(msg)}`;
+  c.appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('show')));
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},3200);
+}
+
+// ─── RESET ───────────────────────────────────────────
+function resetDemo(){
+  txs=ORIG.map(t=>({...t})); sel.clear(); curTab='semua';
+  document.getElementById('prog-fill').style.width='0';
+  document.getElementById('prog-pct').textContent='0%';
+  document.getElementById('phase-upload').style.display='block';
+  document.getElementById('phase-analyze').style.display='none';
+  document.getElementById('file-tag').style.opacity='0';
+  document.getElementById('search').value='';
+  document.querySelectorAll('.tab').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});
+  document.getElementById('tab-semua').classList.add('active');
+  document.getElementById('tab-semua').setAttribute('aria-selected','true');
+  closeDrawer(); clearSel();
+  document.getElementById('s-'+cur).style.display='none';
+  const up=document.getElementById('s-upload');
+  up.style.display='flex'; up.style.opacity='1'; up.style.transform='translateY(0)';
+  cur='upload';
+}
+
+// ─── UTILS ───────────────────────────────────────────
+function rp(n){return 'Rp '+n.toLocaleString('id-ID');}
+function esc(s){return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
+</script>
+</body>
+</html>
