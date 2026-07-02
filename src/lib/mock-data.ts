@@ -1,9 +1,27 @@
+export interface AccurateDatabase {
+  id: string;
+  name: string;
+  dbCode: string;
+  env: "production" | "training" | "archive";
+  connected?: boolean;
+}
+
+export const ACCURATE_DATABASES: AccurateDatabase[] = [
+  { id: "db-retail", name: "Retail Sample (Accurate Online)", dbCode: "RSP-2744191", env: "training", connected: true },
+  { id: "db-1", name: "PT Ega Accurate Indonesia", dbCode: "EGA-PROD", env: "production" },
+  { id: "db-2", name: "PT Ega Accurate Indonesia — Training", dbCode: "EGA-TRAIN", env: "training" },
+  { id: "db-3", name: "PT Ega Accurate Indonesia — Arsip 2025", dbCode: "EGA-2025", env: "archive" },
+];
+
 export interface RawTransaction {
   no: number;
   post_date: string;
+  branch: string;
+  journal_no: string;
   description_raw: string;
   amount: number;
   db_cr: "D" | "C";
+  balance: number;
 }
 
 export interface COAEntry {
@@ -44,91 +62,72 @@ export interface BankAccountMapping {
   coa_name: string;
 }
 
-// ─── Transactions ──────────────────────────────────────────
-export const ALREADY_RECORDED_IN_ACCURATE: string[] = [
-  "192837812",
-  "192837800",
-];
+// ─── Transactions (mock data) ──────────────────────────────────────────────
+// MTU-0891 sudah tercatat di Accurate
+export const ALREADY_RECORDED_IN_ACCURATE: string[] = ["MTU-0891"];
 
 export const RAW_TRANSACTIONS: RawTransaction[] = [
-  {
-    no: 1,
-    post_date: "2026-04-01 06:24:32",
-    description_raw:
-      "TRF/PAY/TOP-UP ECHANNEL | 6010043330000011 | BNI DIRECT | BILL PAYMENT (PLN PREPAID) NO :86026222603 / Inv/2025/04/01/192837812",
-    amount: 500_000,
-    db_cr: "D",
-  },
-  {
-    no: 2,
-    post_date: "2026-04-01 08:10:05",
-    description_raw:
-      "TRF/PAY/SUPPLIER | 1234567890 | PT SUMBER MAKMUR JAYA | PELUNASAN HUTANG / Inv/2026/03/28/204501234",
-    amount: 18_500_000,
-    db_cr: "D",
-  },
-  {
-    no: 3,
-    post_date: "2026-04-01 09:15:44",
-    description_raw:
-      "TRF/PAY/SUPPLIER | 9876543210 | CV MITRA TEKNIK UTAMA | PEMBAYARAN INVOICE / Inv/2026/03/30/204509876",
-    amount: 7_200_000,
-    db_cr: "D",
-  },
-  {
-    no: 4,
-    post_date: "2026-04-01 10:00:00",
-    description_raw:
-      "TRF/PAY/SUPPLIER | 1122334455 | PT KARYA MANDIRI | PELUNASAN INVOICE / Inv/2026/04/01/192837800",
-    amount: 12_000_000,
-    db_cr: "D",
-  },
-  {
-    no: 5,
-    post_date: "2026-04-02 07:30:00",
-    description_raw: "BIAYA ADMIN BANK BULAN APRIL 2026",
-    amount: 15_000,
-    db_cr: "D",
-  },
-  {
-    no: 6,
-    post_date: "2026-04-02 08:00:00",
-    description_raw:
-      "TRF/PAY/TOP-UP ECHANNEL | 6010043330000099 | BNI DIRECT | BILL PAYMENT (PLN PREPAID) NO :86026229900",
-    amount: 300_000,
-    db_cr: "D",
-  },
-  {
-    no: 7,
-    post_date: "2026-04-02 09:45:10",
-    description_raw:
-      "PEMINDAHBUKUAN KE REK 0087654321 BCA - TRANSFER INTERNAL KAS KECIL",
-    amount: 10_000_000,
-    db_cr: "D",
-  },
-  {
-    no: 8,
-    post_date: "2026-04-02 11:20:33",
-    description_raw:
-      "TRF/PAY/SUPPLIER | 5544332211 | PT INDAH LOGISTIK | PEMBAYARAN INV / Inv/2026/04/02/205001122",
-    amount: 25_000_000,
-    db_cr: "D",
-  },
-  {
-    no: 9,
-    post_date: "2026-04-03 08:05:00",
-    description_raw: "PULSA & INTERNET KARYAWAN APRIL 2026 - TELKOMSEL",
-    amount: 600_000,
-    db_cr: "D",
-  },
-  {
-    no: 10,
-    post_date: "2026-04-03 13:00:00",
-    description_raw:
-      "20260403 SETOR TUNAI COUNTER BNI CABANG JAKARTA SELATAN - REF 998877665544",
-    amount: 5_000_000,
-    db_cr: "C",
-  },
+  // 1. Invoice — PT Sumber Makmur Jaya
+  { no: 1,  post_date: "2026-06-15 09:12:00", branch: "BNI DIRECT", journal_no: "110234",
+    description_raw: "TRANSFER KE | PEMINDAHAN KE   1234100200    PT SUMBER MAKMUR JAYA | Inv/2026/04/14/SMJ-4521 | 202604151234567890",
+    amount: 12_500_000, db_cr: "D", balance: 120_000_000 },
+
+  // 2. Invoice — CV Mitra Teknik Utama (sudah tercatat)
+  { no: 2,  post_date: "2026-06-15 10:30:00", branch: "BNI DIRECT", journal_no: "110301",
+    description_raw: "TRANSFER KE | PEMINDAHAN KE   9988776655    CV MITRA TEKNIK UTAMA | Inv/2026/04/13/MTU-0891 | 202604151234567899",
+    amount: 8_750_000, db_cr: "D", balance: 107_500_000 },
+
+  // 3. PLN Prepaid + Biaya Admin
+  { no: 3,  post_date: "2026-06-15 11:05:00", branch: "BNI DIRECT", journal_no: "220455",
+    description_raw: "TRF/PAY/TOP-UP ECHANNEL | 6010043330000011 | BNI DIRECT | BILL PAYMENT (PLN PREPAID ) NO :86026222603",
+    amount: 500_000, db_cr: "D", balance: 107_000_000 },
+  { no: 4,  post_date: "2026-06-15 11:05:00", branch: "BNI DIRECT", journal_no: "220455",
+    description_raw: "TRF/PAY/TOP-UP ECHANNEL | 6010043330000011 | BNI DIRECT | BIAYA ADMIN (PLN PREPAID ) NO :86026222603   550",
+    amount: 3_500, db_cr: "D", balance: 106_996_500 },
+
+  // 4. TLKM + Biaya Admin
+  { no: 5,  post_date: "2026-06-16 14:22:00", branch: "BNI DIRECT", journal_no: "331102",
+    description_raw: "TRF/PAY/TOP-UP ECHANNEL | 6010043330000011 | BNI DIRECT | BILL PAYMENT (TLKM BANDUNG) NO :0141505303714",
+    amount: 429_570, db_cr: "D", balance: 106_566_930 },
+  { no: 6,  post_date: "2026-06-16 14:22:00", branch: "BNI DIRECT", journal_no: "331102",
+    description_raw: "TRF/PAY/TOP-UP ECHANNEL | 6010043330000011 | BNI DIRECT | BIAYA ADMIN (TLKM BANDUNG) NO :0141505303714 003",
+    amount: 2_800, db_cr: "D", balance: 106_564_130 },
+
+  // 5. Transfer keluar tanpa referensi (perlu review)
+  { no: 7,  post_date: "2026-06-16 15:00:00", branch: "BNI DIRECT", journal_no: "440871",
+    description_raw: "TRANSFER KE | PEMINDAHAN KE   1763434681    YATINAH | PSN 10 CK 160426 | 1763434681 202604165287008517",
+    amount: 25_000_000, db_cr: "D", balance: 81_564_130 },
+
+  // 6. BIFAST + fee
+  { no: 8,  post_date: "2026-06-17 09:45:00", branch: "BNI DIRECT", journal_no: "551230",
+    description_raw: "TRF/PAY/TOP-UP ECHANNEL | PEMINDAHAN KE   1380022032697 | 0000000000000000 | 1380022032697    Dansos Infaq Yatim Piatu",
+    amount: 500_000, db_cr: "D", balance: 81_064_130 },
+  { no: 9,  post_date: "2026-06-17 09:45:00", branch: "BNI DIRECT", journal_no: "551230",
+    description_raw: "BY TRX BIFAST",
+    amount: 2_500, db_cr: "D", balance: 81_061_630 },
+
+  // 7. Incoming credit (perlu review)
+  { no: 10, post_date: "2026-06-17 10:15:00", branch: "", journal_no: "660045",
+    description_raw: "TRANSFER DARI | PEMINDAHAN DARI 8081000086    AIRPAY INTERNATIONAL IN | SF 8138 36091 01     17625496097290611238474569",
+    amount: 2_150_000, db_cr: "C", balance: 83_211_630 },
+
+  // 8. Invoice — PT Indah Logistik (besar)
+  { no: 11, post_date: "2026-06-18 08:30:00", branch: "BNI DIRECT", journal_no: "770912",
+    description_raw: "TRANSFER KE | PEMINDAHAN KE   5070535448    PT INDAH LOGISTIK | Inv/2026/04/17/ILG-7834 | 202604181386550976",
+    amount: 47_500_000, db_cr: "D", balance: 35_711_630 },
+
+  // 9. PLN Postpaid + Biaya Admin
+  { no: 12, post_date: "2026-06-18 13:00:00", branch: "BNI DIRECT", journal_no: "880340",
+    description_raw: "TRF/PAY/TOP-UP ECHANNEL | 6010043330000011 | BNI DIRECT | BILL PAYMENT (PLN POSTPAID) NO :520510266277",
+    amount: 785_290, db_cr: "D", balance: 34_926_340 },
+  { no: 13, post_date: "2026-06-18 13:00:00", branch: "BNI DIRECT", journal_no: "880340",
+    description_raw: "TRF/PAY/TOP-UP ECHANNEL | 6010043330000011 | BNI DIRECT | BIAYA ADMIN (PLN POSTPAID) NO :520510266277  486",
+    amount: 3_500, db_cr: "D", balance: 34_922_840 },
+
+  // 10. Invoice — PT Global Supplier Indonesia
+  { no: 14, post_date: "2026-06-20 08:00:00", branch: "BNI DIRECT", journal_no: "990711",
+    description_raw: "TRANSFER KE | PEMINDAHAN KE   6789012345    PT GLOBAL SUPPLIER INDONESIA | Inv/2026/04/19/GSI-1102 | 202604201234567891",
+    amount: 18_300_000, db_cr: "D", balance: 16_622_840 },
 ];
 
 // ─── COA Master ──────────────────────────────────────────
@@ -183,7 +182,7 @@ export const VENDOR_MASTER: VendorEntry[] = [
 export const AUDIT_LOG: AuditLogEntry[] = [
   {
     id: "log-015",
-    timestamp: "2026-04-03 14:22:10",
+    timestamp: "2026-06-03 14:22:10",
     user: "bonaventuraoctavito@gmail.com",
     action: "push_single",
     description: "Push transaksi Invoice 205001122 - PT Indah Logistik",
@@ -193,7 +192,7 @@ export const AUDIT_LOG: AuditLogEntry[] = [
   },
   {
     id: "log-014",
-    timestamp: "2026-04-03 14:20:05",
+    timestamp: "2026-06-03 14:20:05",
     user: "bonaventuraoctavito@gmail.com",
     action: "push_single",
     description: "Push transaksi Beban Admin Bank (April 2026)",
@@ -203,7 +202,7 @@ export const AUDIT_LOG: AuditLogEntry[] = [
   },
   {
     id: "log-013",
-    timestamp: "2026-04-03 09:00:00",
+    timestamp: "2026-06-03 09:00:00",
     user: "bonaventuraoctavito@gmail.com",
     action: "import_statement",
     description: "Import e-statement Rekening_Koran_BNI_April2026.xlsx",
@@ -213,7 +212,7 @@ export const AUDIT_LOG: AuditLogEntry[] = [
   },
   {
     id: "log-012",
-    timestamp: "2026-04-01 08:30:00",
+    timestamp: "2026-06-01 08:30:00",
     user: "bonaventuraoctavito@gmail.com",
     action: "sync_coa",
     description: "Sinkronisasi Master COA dari Accurate Online",

@@ -1,0 +1,10 @@
+{
+  "configs": {
+    "db-retail": {
+      "bankAccountNo": "111.101-01",
+      "vendorNos": [
+        "VJKT-0003"
+      ]
+    }
+  }
+}

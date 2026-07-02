@@ -52,13 +52,13 @@ export default function ConnectPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-4"
-      style={{ background: "#FAF7F2" }}
+      style={{ background: "#F1F5F9" }}
     >
       {/* Subtle dot pattern */}
       <div
         className="absolute inset-0 opacity-40"
         style={{
-          backgroundImage: "radial-gradient(circle, #D4C9B8 1px, transparent 1px)",
+          backgroundImage: "radial-gradient(circle, #CBD5E1 1px, transparent 1px)",
           backgroundSize: "28px 28px",
         }}
       />
@@ -74,14 +74,14 @@ export default function ConnectPage() {
         >
           <div
             className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4"
-            style={{ background: "#E8F5F3", border: "1px solid #B2DED9" }}
+            style={{ background: "#EFF6FF", border: "1px solid #BFDBFE" }}
           >
-            <Zap size={20} className="text-teal-600" />
+            <Zap size={20} className="text-blue-600" />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "#1C1917" }}>
+          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "#0F172A" }}>
             AP Validation
           </h1>
-          <p className="text-sm mt-1.5" style={{ color: "#78716C" }}>
+          <p className="text-sm mt-1.5" style={{ color: "#475569" }}>
             e-Statement BNI → Accurate Online
           </p>
         </motion.div>
@@ -94,7 +94,7 @@ export default function ConnectPage() {
           className="rounded-2xl overflow-hidden"
           style={{
             background: "#FFFFFF",
-            border: "1px solid #E8E0D0",
+            border: "1px solid #E2E8F0",
             boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
           }}
         >
@@ -111,15 +111,15 @@ export default function ConnectPage() {
                   <div className="flex items-start gap-4">
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: "#F0FDF9", border: "1px solid #CCFBEF" }}
+                      style={{ background: "#EFF6FF", border: "1px solid #DBEAFE" }}
                     >
-                      <Database size={18} className="text-teal-600" />
+                      <Database size={18} className="text-blue-600" />
                     </div>
                     <div>
-                      <h2 className="font-semibold text-sm" style={{ color: "#1C1917" }}>
+                      <h2 className="font-semibold text-sm" style={{ color: "#0F172A" }}>
                         Hubungkan ke Accurate Online
                       </h2>
-                      <p className="text-xs mt-1 leading-relaxed" style={{ color: "#78716C" }}>
+                      <p className="text-xs mt-1 leading-relaxed" style={{ color: "#475569" }}>
                         Autentikasi via OAuth 2.0. Sistem akan membaca data master
                         vendor, COA, dan invoice outstanding dari akun Accurate Anda.
                       </p>
@@ -128,7 +128,7 @@ export default function ConnectPage() {
 
                   <div
                     className="rounded-xl divide-y overflow-hidden"
-                    style={{ border: "1px solid #EDE8DF" }}
+                    style={{ border: "1px solid #EFF6FF" }}
                   >
                     {[
                       { label: "Data vendor & supplier",   desc: "Untuk pencocokan nama di description" },
@@ -138,12 +138,12 @@ export default function ConnectPage() {
                       <div
                         key={item.label}
                         className="px-4 py-3 flex gap-3 items-start"
-                        style={{ borderBottom: "1px solid #EDE8DF" }}
+                        style={{ borderBottom: "1px solid #EFF6FF" }}
                       >
-                        <CheckCircle2 size={14} className="text-teal-500 mt-0.5 flex-shrink-0" />
+                        <CheckCircle2 size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
                         <div>
-                          <span className="text-sm font-medium" style={{ color: "#1C1917" }}>{item.label}</span>
-                          <span className="text-xs block mt-0.5" style={{ color: "#A8A097" }}>{item.desc}</span>
+                          <span className="text-sm font-medium" style={{ color: "#0F172A" }}>{item.label}</span>
+                          <span className="text-xs block mt-0.5" style={{ color: "#64748B" }}>{item.desc}</span>
                         </div>
                       </div>
                     ))}
@@ -159,7 +159,7 @@ export default function ConnectPage() {
 
                   <Button
                     className="w-full h-11 text-sm font-semibold gap-2 rounded-xl"
-                    style={{ background: "#0F766E", color: "#FFFFFF" }}
+                    style={{ background: "#0B3D91", color: "#FFFFFF" }}
                     onClick={startConnect}
                     aria-label="Mulai proses koneksi ke Accurate Online"
                   >
@@ -178,7 +178,7 @@ export default function ConnectPage() {
                   className="space-y-4"
                 >
                   <div className="text-center pb-2">
-                    <p className="text-sm font-medium" style={{ color: "#44403C" }}>
+                    <p className="text-sm font-medium" style={{ color: "#334155" }}>
                       {phase === "done" ? "Berhasil terhubung!" : "Menghubungkan ke Accurate..."}
                     </p>
                   </div>
@@ -202,18 +202,18 @@ export default function ConnectPage() {
                                 animate={{ scale: 1 }}
                                 transition={{ type: "spring", stiffness: 500, damping: 25 }}
                               >
-                                <CheckCircle2 size={14} className="text-teal-500" />
+                                <CheckCircle2 size={14} className="text-blue-500" />
                               </motion.div>
                             ) : isActive ? (
-                              <Loader2 size={14} className="animate-spin" style={{ color: "#78716C" }} />
+                              <Loader2 size={14} className="animate-spin" style={{ color: "#475569" }} />
                             ) : (
-                              <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#D6D0C8" }} />
+                              <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#CBD5E1" }} />
                             )}
                           </div>
                           <span
                             className="text-sm transition-colors duration-200"
                             style={{
-                              color: isDone ? "#A8A097" : isActive ? "#1C1917" : "#C4BDB4",
+                              color: isDone ? "#64748B" : isActive ? "#0F172A" : "#94A3B8",
                             }}
                           >
                             {step.label}
@@ -230,8 +230,8 @@ export default function ConnectPage() {
                       transition={{ duration: 0.3 }}
                       className="pt-2 text-center flex items-center justify-center gap-1.5"
                     >
-                      <Loader2 size={12} className="animate-spin text-teal-500" />
-                      <span className="text-xs" style={{ color: "#78716C" }}>
+                      <Loader2 size={12} className="animate-spin text-blue-500" />
+                      <span className="text-xs" style={{ color: "#475569" }}>
                         Menyiapkan dashboard...
                       </span>
                     </motion.div>
@@ -247,7 +247,7 @@ export default function ConnectPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
           className="text-center text-xs mt-6"
-          style={{ color: "#B0A89A" }}
+          style={{ color: "#94A3B8" }}
         >
           Fase 1 · Mockup interaktif · Belum ada koneksi API production
         </motion.p>

@@ -60,7 +60,7 @@ export default function VendorPage() {
             </p>
           </div>
           <Button
-            className="h-10 gap-2 bg-zinc-900 hover:bg-zinc-700 text-white"
+            className="h-10 gap-2 bg-blue-900 hover:bg-blue-800 text-white"
             onClick={handleSync}
             disabled={isSyncing}
             aria-label="Sinkronisasi ulang Master Vendor dari Accurate Online"
@@ -121,7 +121,7 @@ export default function VendorPage() {
                 onClick={() => setStatusFilter(s)}
                 className={`px-4 h-10 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset capitalize ${
                   statusFilter === s
-                    ? "bg-zinc-900 text-white"
+                    ? "bg-blue-900 text-white"
                     : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700"
                 }`}
                 aria-pressed={statusFilter === s}
@@ -182,7 +182,7 @@ export default function VendorPage() {
                     <Badge
                       className={`text-xs font-medium px-2.5 ${
                         vendor.is_active
-                          ? "bg-teal-50 text-teal-700 border-teal-100"
+                          ? "bg-blue-50 text-blue-700 border-blue-100"
                           : "bg-zinc-100 text-zinc-400 border-zinc-200"
                       }`}
                     >

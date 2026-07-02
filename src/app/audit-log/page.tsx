@@ -1,21 +1,22 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ClipboardList,
   ArrowUpRight,
   RefreshCw,
-  FileText,
+  FileSpreadsheet,
   CheckCircle2,
-  BookOpen,
-  Users,
-  XCircle,
+  Loader2,
+  Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/AppShell";
-import { AUDIT_LOG, AuditLogEntry } from "@/lib/mock-data";
 import { formatRupiah } from "@/lib/parser";
+import type { JournalGroup } from "@/lib/parser";
 
 const DATE_FILTERS = [
   { label: "Semua", value: "semua" },
@@ -24,55 +25,83 @@ const DATE_FILTERS = [
   { label: "30 hari terakhir", value: "30d" },
 ] as const;
 
-const ACTION_CONFIG: Record<
-  AuditLogEntry["action"],
-  { label: string; icon: typeof ArrowUpRight; color: string }
-> = {
-  push_single:      { label: "Push Transaksi",    icon: ArrowUpRight, color: "text-teal-500"  },
-  push_batch:       { label: "Push Batch",         icon: ArrowUpRight, color: "text-teal-500"  },
-  resolve_review:   { label: "Selesaikan Review",  icon: CheckCircle2, color: "text-blue-500"  },
-  sync_coa:         { label: "Sync COA",           icon: BookOpen,     color: "text-purple-500" },
-  sync_vendor:      { label: "Sync Vendor",         icon: Users,        color: "text-purple-500" },
-  import_statement: { label: "Import e-Statement", icon: FileText,     color: "text-zinc-500"  },
-};
+interface ApSessionRecord {
+  id: string;
+  createdAt: string;
+  createdBy: { id: string; name: string };
+  createdByEmail?: string;
+  createdByIp?: string;
+  database: { id: string; name: string; dbCode: string };
+  fileName: string;
+  groups: JournalGroup[];
+  pushedIds: string[];
+  resolvedIds: string[];
+  status: "draft" | "selesai";
+}
 
-function formatTimestamp(ts: string) {
-  const d = new Date(ts.replace(" ", "T"));
+function formatTimestamp(iso: string) {
+  const d = new Date(iso);
   return {
     date: d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }),
     time: d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
   };
 }
 
-function isWithinDays(ts: string, days: number) {
-  const d = new Date(ts.replace(" ", "T"));
-  const now = new Date("2026-04-03T23:59:59"); // demo date
+function isWithinDays(iso: string, days: number) {
+  const d = new Date(iso);
+  const now = new Date();
   return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= days;
 }
 
+function sessionProgress(session: ApSessionRecord): { done: number; total: number } {
+  const pushed = new Set(session.pushedIds);
+  const resolved = new Set(session.resolvedIds);
+  let done = 0;
+  for (const g of session.groups) {
+    let status = g.accurate_status;
+    if (pushed.has(g.group_id)) status = "sudah_tercatat";
+    if (resolved.has(g.group_id) && status === "perlu_review") status = "akan_dipush";
+    if (status === "sudah_tercatat") done++;
+  }
+  return { done, total: session.groups.length };
+}
+
+function sessionTotalDebit(session: ApSessionRecord): number {
+  return session.groups
+    .filter((g) => g.db_cr === "D")
+    .reduce((s, g) => s + g.total_debit, 0);
+}
+
 export default function AuditLogPage() {
+  const router = useRouter();
+  const [sessions, setSessions] = useState<ApSessionRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState<"semua" | "today" | "7d" | "30d">("semua");
 
+  useEffect(() => {
+    fetch("/api/ap-sessions")
+      .then((r) => r.json())
+      .then((data: ApSessionRecord[]) => setSessions(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
+
   const filtered = useMemo(() => {
-    if (dateFilter === "semua") return AUDIT_LOG;
-    if (dateFilter === "today") return AUDIT_LOG.filter((l) => isWithinDays(l.timestamp, 1));
-    if (dateFilter === "7d") return AUDIT_LOG.filter((l) => isWithinDays(l.timestamp, 7));
-    if (dateFilter === "30d") return AUDIT_LOG.filter((l) => isWithinDays(l.timestamp, 30));
-    return AUDIT_LOG;
-  }, [dateFilter]);
+    if (dateFilter === "semua") return sessions;
+    const days = dateFilter === "today" ? 1 : dateFilter === "7d" ? 7 : 30;
+    return sessions.filter((s) => isWithinDays(s.createdAt, days));
+  }, [sessions, dateFilter]);
 
   const stats = useMemo(() => ({
     total: filtered.length,
-    sukses: filtered.filter((l) => l.status === "sukses").length,
-    gagal: filtered.filter((l) => l.status === "gagal").length,
-    totalPushed: filtered
-      .filter((l) => (l.action === "push_single" || l.action === "push_batch") && l.status === "sukses")
-      .reduce((s, l) => s + (l.amount || 0), 0),
+    draft: filtered.filter((s) => s.status === "draft").length,
+    selesai: filtered.filter((s) => s.status === "selesai").length,
+    totalNilai: filtered.reduce((sum, s) => sum + sessionTotalDebit(s), 0),
   }), [filtered]);
 
   return (
     <AppShell>
-      <div className="px-6 py-6 max-w-4xl mx-auto space-y-6">
+      <div className="px-6 py-6 max-w-7xl mx-auto space-y-6">
 
         {/* Header */}
         <motion.div
@@ -82,7 +111,7 @@ export default function AuditLogPage() {
         >
           <h1 className="text-xl font-semibold text-zinc-900">Audit Log</h1>
           <p className="text-sm text-zinc-500 mt-1">
-            Riwayat seluruh aktivitas push ke Accurate Online dan sinkronisasi data
+            Riwayat seluruh sesi Transaksi AP yang pernah dibuat
           </p>
         </motion.div>
 
@@ -94,10 +123,10 @@ export default function AuditLogPage() {
           className="grid grid-cols-2 sm:grid-cols-4 gap-3"
         >
           {[
-            { label: "Total Aktivitas",   value: String(stats.total),  icon: ClipboardList, color: "text-zinc-500"  },
-            { label: "Sukses",            value: String(stats.sukses), icon: CheckCircle2,  color: "text-teal-500"  },
-            { label: "Gagal",             value: String(stats.gagal),  icon: XCircle,       color: "text-red-500"   },
-            { label: "Total Nilai Push",  value: formatRupiah(stats.totalPushed), icon: ArrowUpRight, color: "text-zinc-600" },
+            { label: "Total Sesi",  value: String(stats.total),   icon: ClipboardList, color: "text-zinc-500" },
+            { label: "Draft",       value: String(stats.draft),   icon: RefreshCw,     color: "text-amber-500" },
+            { label: "Selesai",     value: String(stats.selesai), icon: CheckCircle2,  color: "text-blue-500" },
+            { label: "Total Nilai", value: formatRupiah(stats.totalNilai), icon: ArrowUpRight, color: "text-zinc-600" },
           ].map((s, i) => {
             const Icon = s.icon;
             return (
@@ -133,7 +162,7 @@ export default function AuditLogPage() {
                 onClick={() => setDateFilter(f.value)}
                 className={`px-4 h-9 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
                   dateFilter === f.value
-                    ? "bg-zinc-900 text-white"
+                    ? "bg-blue-900 text-white"
                     : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700"
                 }`}
                 aria-pressed={dateFilter === f.value}
@@ -143,7 +172,7 @@ export default function AuditLogPage() {
               </button>
             ))}
           </div>
-          <span className="text-sm text-zinc-400 ml-2">{filtered.length} entri</span>
+          <span className="text-sm text-zinc-400 ml-2">{filtered.length} sesi</span>
         </motion.div>
 
         {/* Log table */}
@@ -154,78 +183,101 @@ export default function AuditLogPage() {
           className="bg-white border border-zinc-200 rounded-xl overflow-hidden"
         >
           {/* Header */}
-          <div className="grid grid-cols-[140px_160px_1fr_160px_90px] gap-0 px-5 py-2.5 bg-zinc-50 border-b border-zinc-100">
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Waktu</span>
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Jenis Aksi</span>
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Keterangan</span>
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Modul / Nilai</span>
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider text-center">Status</span>
+          <div className="hidden lg:grid grid-cols-[100px_1fr_150px_110px_170px_90px_80px_70px_80px] gap-3 px-5 py-2.5 bg-zinc-50 border-b border-zinc-100">
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tanggal</span>
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Nama File</span>
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Database</span>
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Dibuat oleh</span>
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Email</span>
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">IP / Lokasi</span>
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</span>
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Progress</span>
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Aksi</span>
           </div>
 
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <div className="py-16 flex items-center justify-center">
+              <Loader2 size={16} className="animate-spin text-zinc-400" />
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
-              <p className="text-sm text-zinc-400">Tidak ada aktivitas dalam rentang waktu ini.</p>
+              <FileSpreadsheet size={20} className="text-zinc-300 mx-auto mb-2" />
+              <p className="text-sm text-zinc-400">Tidak ada sesi Transaksi AP dalam rentang waktu ini.</p>
             </div>
           ) : (
             <div className="divide-y divide-zinc-100">
-              {filtered.map((log, i) => {
-                const cfg = ACTION_CONFIG[log.action];
-                const Icon = cfg.icon;
-                const ts = formatTimestamp(log.timestamp);
+              {filtered.map((s, i) => {
+                const ts = formatTimestamp(s.createdAt);
+                const { done, total } = sessionProgress(s);
                 return (
                   <motion.div
-                    key={log.id}
+                    key={s.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.03, duration: 0.2 }}
-                    className="grid grid-cols-[140px_160px_1fr_160px_90px] gap-0 px-5 py-4 items-start hover:bg-zinc-50 transition-colors"
+                    className="grid grid-cols-1 lg:grid-cols-[100px_1fr_150px_110px_170px_90px_80px_70px_80px] gap-1 lg:gap-3 px-5 py-4 items-center hover:bg-zinc-50 transition-colors"
                   >
-                    {/* Waktu */}
+                    {/* Tanggal */}
                     <div>
                       <p className="text-sm text-zinc-700 font-medium">{ts.date}</p>
                       <p className="text-xs text-zinc-400 font-mono mt-0.5">{ts.time}</p>
                     </div>
 
-                    {/* Jenis */}
-                    <div className="flex items-center gap-2 pr-3">
-                      <Icon size={14} className={cfg.color} aria-hidden="true" />
-                      <span className="text-sm text-zinc-700">{cfg.label}</span>
+                    {/* Nama file */}
+                    <div className="pr-3 min-w-0">
+                      <p className="text-sm text-zinc-700 font-mono truncate">{s.fileName}</p>
                     </div>
 
-                    {/* Keterangan */}
-                    <div className="pr-4">
-                      <p className="text-sm text-zinc-600 leading-snug">{log.description}</p>
-                      {log.affected_count && (
-                        <p className="text-xs text-zinc-400 mt-0.5">{log.affected_count} item</p>
-                      )}
+                    {/* Database */}
+                    <div className="pr-3 min-w-0">
+                      <p className="text-sm text-zinc-600 truncate">{s.database.name}</p>
                     </div>
 
-                    {/* Modul & nilai */}
-                    <div>
-                      {log.module && (
-                        <p className="text-xs text-zinc-500 font-medium">{log.module}</p>
-                      )}
-                      {log.amount && (
-                        <p className="text-sm font-semibold text-zinc-700 tabular-nums mt-0.5">
-                          {formatRupiah(log.amount)}
-                        </p>
-                      )}
-                      {!log.module && !log.amount && (
-                        <span className="text-xs text-zinc-300">—</span>
-                      )}
+                    {/* Dibuat oleh */}
+                    <div className="pr-3 min-w-0">
+                      <p className="text-sm text-zinc-600 truncate">{s.createdBy.name}</p>
+                    </div>
+
+                    {/* Email */}
+                    <div className="pr-3 min-w-0">
+                      <p className="text-sm text-zinc-500 truncate">{s.createdByEmail || "-"}</p>
+                    </div>
+
+                    {/* IP */}
+                    <div className="pr-3 min-w-0">
+                      <p className="text-xs text-zinc-500 font-mono truncate">{s.createdByIp || "-"}</p>
                     </div>
 
                     {/* Status */}
-                    <div className="text-center">
+                    <div>
                       <Badge
                         className={`text-xs font-medium px-2.5 ${
-                          log.status === "sukses"
-                            ? "bg-teal-50 text-teal-700 border-teal-100"
-                            : "bg-red-50 text-red-600 border-red-100"
+                          s.status === "selesai"
+                            ? "bg-blue-50 text-blue-700 border-blue-100"
+                            : "bg-amber-50 text-amber-700 border-amber-100"
                         }`}
                       >
-                        {log.status === "sukses" ? "Sukses" : "Gagal"}
+                        {s.status === "selesai" ? "Selesai" : "Draft"}
                       </Badge>
+                    </div>
+
+                    {/* Progress */}
+                    <div>
+                      <span className="text-xs text-zinc-500 font-mono">{done}/{total}</span>
+                    </div>
+
+                    {/* Aksi */}
+                    <div className="text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5 text-xs"
+                        onClick={() => router.push(`/audit-log/${s.id}`)}
+                        aria-label={`Detail sesi ${s.fileName}`}
+                      >
+                        <Eye size={13} aria-hidden="true" />
+                        Detail
+                      </Button>
                     </div>
                   </motion.div>
                 );
@@ -242,7 +294,7 @@ export default function AuditLogPage() {
           className="text-xs text-zinc-400 flex items-center gap-1.5"
         >
           <RefreshCw size={11} aria-hidden="true" />
-          Log disimpan selama 90 hari. Pada Fase 2, log akan tersimpan di database dan dapat diekspor ke Excel.
+          Setiap baris merepresentasikan satu sesi Transaksi AP (satu file e-statement yang diproses).
         </motion.p>
 
       </div>

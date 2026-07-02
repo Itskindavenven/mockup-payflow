@@ -1,0 +1,40 @@
+{
+  "users": [
+    {
+      "id": "admin",
+      "name": "Admin Ega",
+      "email": "admin@ega.co.id",
+      "password": "admin123",
+      "role": "admin",
+      "permissions": [
+        "transaksi",
+        "keyword-mapping",
+        "master-data",
+        "audit-log"
+      ]
+    },
+    {
+      "id": "emp-budi",
+      "name": "Budi Santoso",
+      "email": "budi@ega.co.id",
+      "password": "budi123",
+      "role": "employee",
+      "permissions": [
+        "transaksi"
+      ]
+    },
+    {
+      "id": "emp-sari",
+      "name": "Sari Dewi",
+      "email": "sari@ega.co.id",
+      "password": "sari123",
+      "role": "employee",
+      "permissions": [
+        "transaksi",
+        "keyword-mapping",
+        "master-data",
+        "audit-log"
+      ]
+    }
+  ]
+}

@@ -1,8 +1,7 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -13,72 +12,117 @@ import {
   Settings2,
   Unplug,
   CheckCircle2,
-  ChevronRight,
   Zap,
+  LogOut,
+  ShieldCheck,
+  UserCog,
+  FileBarChart2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { clearConnection } from "@/lib/connection";
 import type { AccurateConnection } from "@/lib/connection";
+import { useSession } from "@/components/session-provider";
+import type { Permission } from "@/lib/auth-types";
+import { cn } from "@/lib/utils";
 
 interface AppSidebarProps {
   connection: AccurateConnection;
 }
 
-const NAV_GROUPS = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  permission?: Permission | "admin";
+}
+
+interface NavGroup {
+  label: string | null;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
     label: null,
     items: [
-      { href: "/dashboard", label: "Beranda",       icon: LayoutDashboard },
-      { href: "/transaksi", label: "Transaksi AP",  icon: ArrowLeftRight  },
+      { href: "/dashboard",  label: "Beranda",      icon: LayoutDashboard },
+      { href: "/transaksi",  label: "Transaksi AP", icon: ArrowLeftRight,  permission: "transaksi" },
+      { href: "/report",     label: "Report",       icon: FileBarChart2 },
     ],
   },
   {
     label: "Master Data",
     items: [
-      { href: "/coa",    label: "Master COA",    icon: BookOpen },
-      { href: "/vendor", label: "Master Vendor", icon: Users    },
+      { href: "/coa",    label: "Master COA",    icon: BookOpen, permission: "master-data" },
+      { href: "/vendor", label: "Master Vendor", icon: Users,    permission: "master-data" },
     ],
   },
   {
     label: "Konfigurasi",
     items: [
-      { href: "/keyword-mapping", label: "Keyword Mapping", icon: Tag           },
-      { href: "/audit-log",       label: "Audit Log",        icon: ClipboardList },
-      { href: "/settings",        label: "Pengaturan",       icon: Settings2     },
+      { href: "/keyword-mapping", label: "Keyword Mapping", icon: Tag,           permission: "keyword-mapping" },
+      { href: "/audit-log",       label: "Audit Log",       icon: ClipboardList, permission: "audit-log" },
+      { href: "/settings",        label: "Pengaturan",      icon: Settings2,     permission: "admin" },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { href: "/admin/users", label: "Manajemen Pengguna", icon: UserCog, permission: "admin" },
     ],
   },
 ];
 
 export function AppSidebar({ connection }: AppSidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
+  const session  = useSession();
 
-  function handleDisconnect() {
-    clearConnection();
-    router.push("/connect");
+  function canAccess(item: NavItem): boolean {
+    if (!session) return false;
+    if (session.role === "admin") return true;
+    if (!item.permission) return true;
+    if (item.permission === "admin") return false;
+    return session.permissions.includes(item.permission as Permission);
   }
 
+  async function handleLogout() {
+    try {
+      await fetch("/api/app-auth/logout", { method: "POST" });
+    } catch { /* ignore */ }
+    clearConnection();
+    // Hard navigation so the root layout re-reads the (now-cleared) session cookie.
+    window.location.href = "/login";
+  }
+
+  async function handleDisconnect() {
+    try {
+      await fetch("/api/app-auth/logout", { method: "POST" });
+    } catch { /* ignore */ }
+    clearConnection();
+    toast.info("Koneksi Accurate diputus.");
+    window.location.href = "/login";
+  }
+
+  const initials = session?.name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase() ?? "??";
+
   return (
-    <aside
-      className="w-60 flex-shrink-0 h-screen sticky top-0 flex flex-col"
-      style={{
-        background: "#F7F3EC",
-        borderRight: "1px solid #E8E0D0",
-      }}
-    >
+    <aside className="w-60 flex-shrink-0 h-screen sticky top-0 flex flex-col bg-sidebar text-sidebar-foreground">
       {/* Logo */}
-      <div className="px-4 py-5" style={{ borderBottom: "1px solid #E8E0D0" }}>
+      <div className="px-4 py-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: "#E8F5F3", border: "1px solid #B2DED9" }}
-          >
-            <Zap size={13} className="text-teal-600" />
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-white">
+            <Zap size={15} className="text-sidebar" strokeWidth={2.5} />
           </div>
-          <div>
-            <span className="text-sm font-semibold tracking-tight block" style={{ color: "#1C1917" }}>
+          <div className="min-w-0">
+            <span className="text-sm font-semibold tracking-tight block text-white">
               AP Validation
             </span>
-            <span className="text-[10px] font-mono" style={{ color: "#A8A097" }}>
+            <span className="text-[10px] font-mono text-sidebar-foreground/60">
               BNI → Accurate Online
             </span>
           </div>
@@ -87,103 +131,103 @@ export function AppSidebar({ connection }: AppSidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-4">
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label ?? "main"}>
-            {group.label && (
-              <p
-                className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest"
-                style={{ color: "#B0A89A" }}
-              >
-                {group.label}
-              </p>
-            )}
-            <div className="space-y-0.5">
-              {group.items.map(({ href, label, icon: Icon }) => {
-                const active = pathname === href;
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="group relative flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 outline-none"
-                    style={{
-                      color: active ? "#1C1917" : "#78716C",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!active) {
-                        (e.currentTarget as HTMLElement).style.background = "#EDE8DF";
-                        (e.currentTarget as HTMLElement).style.color = "#1C1917";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!active) {
-                        (e.currentTarget as HTMLElement).style.background = "";
-                        (e.currentTarget as HTMLElement).style.color = "#78716C";
-                      }
-                    }}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    {active && (
-                      <motion.div
-                        layoutId="sidebar-active"
-                        className="absolute inset-0 rounded-lg"
-                        style={{ background: "#EDE8DF" }}
-                        transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                      />
-                    )}
-                    <Icon
-                      size={15}
-                      className="relative z-10 flex-shrink-0 transition-colors duration-100"
-                      style={{ color: active ? "#0F766E" : "#A8A097" }}
-                      aria-hidden="true"
-                    />
-                    <span className="relative z-10 flex-1">{label}</span>
-                    {active && (
-                      <ChevronRight
-                        size={12}
-                        className="relative z-10"
-                        style={{ color: "#B0A89A" }}
+        {NAV_GROUPS.map((group) => {
+          const visibleItems = group.items.filter(canAccess);
+          if (visibleItems.length === 0) return null;
+          return (
+            <div key={group.label ?? "main"}>
+              {group.label && (
+                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/50">
+                  {group.label}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {visibleItems.map(({ href, label, icon: Icon }) => {
+                  const active = pathname === href || pathname.startsWith(href + "/");
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={cn(
+                        "group relative flex items-center gap-2.5 pl-2.5 pr-3 py-2.5 rounded-lg text-sm font-medium border-l-[3px] transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-1 outline-none",
+                        active
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground border-l-sidebar-ring"
+                          : "border-l-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-white"
+                      )}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <Icon
+                        size={15}
+                        className={cn(
+                          "flex-shrink-0 transition-colors duration-100",
+                          active ? "text-sidebar" : "text-sidebar-foreground/60 group-hover:text-white"
+                        )}
                         aria-hidden="true"
                       />
-                    )}
-                  </Link>
-                );
-              })}
+                      <span className="flex-1">{label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
-      {/* Connection status */}
-      <div className="px-3 py-4 space-y-3" style={{ borderTop: "1px solid #E8E0D0" }}>
-        <div className="flex items-start gap-2.5">
-          <CheckCircle2 size={14} className="text-teal-600 mt-0.5 flex-shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs font-medium truncate" style={{ color: "#44403C" }}>
+      {/* Footer */}
+      <div className="px-3 py-3 space-y-2 border-t border-sidebar-border">
+        {/* Accurate connection */}
+        <div className="flex items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <CheckCircle2 size={11} className="text-emerald-400 flex-shrink-0" />
+            <span className="text-[10px] truncate text-sidebar-foreground/55">
               {connection.companyName}
-            </p>
-            <p className="text-[10px] truncate mt-0.5" style={{ color: "#A8A097" }}>
-              {connection.userEmail}
-            </p>
+            </span>
           </div>
+          <button
+            onClick={handleDisconnect}
+            title="Putuskan koneksi Accurate"
+            className="p-1 rounded transition-colors focus-visible:ring-1 focus-visible:ring-red-400 outline-none flex-shrink-0 text-sidebar-foreground/40 hover:text-red-300"
+            aria-label="Putuskan koneksi Accurate"
+          >
+            <Unplug size={11} />
+          </button>
         </div>
 
-        <button
-          onClick={handleDisconnect}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1 outline-none"
-          style={{ color: "#A8A097" }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.color = "#DC2626";
-            (e.currentTarget as HTMLElement).style.background = "#FEF2F2";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.color = "#A8A097";
-            (e.currentTarget as HTMLElement).style.background = "";
-          }}
-          aria-label="Putuskan koneksi dari Accurate Online"
-        >
-          <Unplug size={12} aria-hidden="true" />
-          Putuskan koneksi
-        </button>
+        {/* User info */}
+        {session && (
+          <div className="rounded-xl px-3 py-2.5 space-y-2 bg-sidebar-accent">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-[11px] font-bold bg-white/15 text-white">
+                {initials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium truncate text-white">
+                  {session.name}
+                </p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  {session.role === "admin" ? (
+                    <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-300">
+                      <ShieldCheck size={10} />
+                      Admin
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-sidebar-foreground/55">Karyawan</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors focus-visible:ring-1 focus-visible:ring-red-400 outline-none text-sidebar-foreground/70 hover:bg-red-500/15 hover:text-red-200"
+              aria-label="Keluar dari aplikasi"
+            >
+              <LogOut size={12} aria-hidden="true" />
+              Keluar
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

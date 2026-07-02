@@ -31,75 +31,61 @@ import {
 } from "lucide-react";
 import {
   AccurateStatus,
-  ParsedTransaction,
+  JournalGroup,
   formatRupiah,
   KeywordEntry,
 } from "@/lib/parser";
-import { RawTransaction } from "@/lib/mock-data";
-
-export interface EnrichedTransaction extends RawTransaction, ParsedTransaction {
-  id: string;
-}
 
 const STATUS_CONFIG: Record<
   AccurateStatus,
   { label: string; class: string; icon: typeof CheckCircle2 }
 > = {
-  sudah_tercatat: {
-    label: "Sudah di Accurate",
-    class: "bg-zinc-100 text-zinc-500 border-zinc-200",
-    icon: CheckCircle2,
-  },
-  akan_dipush: {
-    label: "Akan di-push",
-    class: "bg-teal-50 text-teal-700 border-teal-100",
-    icon: ArrowUpRight,
-  },
-  perlu_review: {
-    label: "Perlu Review",
-    class: "bg-amber-50 text-amber-700 border-amber-100",
-    icon: AlertCircle,
-  },
+  sudah_tercatat: { label: "Sudah di Accurate", class: "bg-zinc-100 text-zinc-500 border-zinc-200", icon: CheckCircle2 },
+  akan_dipush:    { label: "Akan di-push",       class: "bg-blue-50 text-blue-700 border-blue-100",  icon: ArrowUpRight  },
+  perlu_review:   { label: "Perlu Review",        class: "bg-amber-50 text-amber-700 border-amber-100", icon: AlertCircle },
 };
 
 const ENDPOINT_MAP: Record<string, string> = {
-  "purchase-payment": "/api/purchase-payment",
-  "other-payment": "/api/other-payment",
+  "purchase-payment": "Pembayaran Pembelian",
+  "other-payment":    "Pengeluaran Lain",
 };
 
 interface TransactionDetailSheetProps {
-  tx: EnrichedTransaction | null;
+  group: JournalGroup | null;
   open: boolean;
   onClose: () => void;
   keywordMap: KeywordEntry[];
-  onPush: (id: string) => void;
-  onManualResolve: (id: string, invoiceNo: string, coa: string) => void;
+  onPush: (group_id: string) => void;
+  onManualResolve: (group_id: string) => void;
+  accurateJournalNo?: string;
 }
 
 export function TransactionDetailSheet({
-  tx,
+  group,
   open,
   onClose,
   keywordMap,
   onPush,
   onManualResolve,
+  accurateJournalNo,
 }: TransactionDetailSheetProps) {
   const [manualInvoice, setManualInvoice] = useState("");
-  const [manualCoa, setManualCoa] = useState<string>("");
+  const [manualCoa, setManualCoa] = useState("");
   const [pushing, setPushing] = useState(false);
 
-  if (!tx) return null;
+  if (!group) return null;
 
-  const cfg = STATUS_CONFIG[tx.accurate_status];
+  const cfg = STATUS_CONFIG[group.accurate_status];
   const StatusIcon = cfg.icon;
   const coaOptions = Array.from(new Set(keywordMap.map((k) => k.coa)));
 
-  function handlePush() {
+  async function handlePush() {
     setPushing(true);
-    setTimeout(() => {
+    try {
+      await onPush(group!.group_id);
+    } finally {
       setPushing(false);
-      onPush(tx!.id);
-    }, 800);
+    }
   }
 
   function handleManualSubmit() {
@@ -107,7 +93,7 @@ export function TransactionDetailSheet({
       toast.error("Isi nomor invoice atau pilih COA terlebih dahulu.");
       return;
     }
-    onManualResolve(tx!.id, manualInvoice, manualCoa);
+    onManualResolve(group!.group_id);
     setManualInvoice("");
     setManualCoa("");
     onClose();
@@ -118,8 +104,8 @@ export function TransactionDetailSheet({
       <SheetContent className="w-full sm:max-w-[480px] overflow-y-auto p-0 bg-white border-l border-zinc-200">
         <SheetHeader className="px-5 pt-5 pb-4 border-b border-zinc-100">
           <div className="flex items-center justify-between">
-            <SheetTitle className="text-sm font-semibold text-zinc-800">
-              Transaksi #{tx.no}
+            <SheetTitle className="text-sm font-semibold text-zinc-800 font-mono">
+              Jurnal #{group.journal_no}
             </SheetTitle>
             <Badge className={`text-[10px] font-normal px-2 ${cfg.class}`}>
               <StatusIcon size={10} className="mr-1 inline" aria-hidden="true" />
@@ -127,29 +113,50 @@ export function TransactionDetailSheet({
             </Badge>
           </div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span
-              className={`text-xl font-semibold tabular-nums ${
-                tx.db_cr === "D" ? "text-red-600" : "text-green-600"
-              }`}
-            >
-              {tx.db_cr === "D" ? "−" : "+"} {formatRupiah(tx.amount)}
+            <span className={`text-xl font-semibold tabular-nums ${group.db_cr === "D" ? "text-red-600" : "text-green-600"}`}>
+              {group.db_cr === "D" ? "−" : "+"} {formatRupiah(group.total_debit || group.primary.amount)}
             </span>
-            <span className="text-xs text-zinc-400">{tx.post_date.slice(0, 10)}</span>
+            <span className="text-xs text-zinc-400">{group.post_date.slice(0, 10)}</span>
           </div>
         </SheetHeader>
 
         <div className="px-5 py-4 space-y-5">
-          {/* Raw description */}
+          {/* Line items */}
           <section>
             <div className="flex items-center gap-1.5 mb-2">
               <Terminal size={11} className="text-zinc-400" aria-hidden="true" />
               <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
-                Raw Description
+                Line Items ({group.rows.length})
               </h3>
             </div>
-            <div className="bg-zinc-950 rounded-lg p-3 font-mono text-[11px] text-zinc-300 leading-relaxed break-all">
-              {tx.description_raw}
+            <div className="space-y-1">
+              {group.rows.map((row) => (
+                <div
+                  key={row.id}
+                  className={`rounded-lg px-3 py-2.5 flex items-start gap-3 ${
+                    row.is_admin_fee
+                      ? "bg-amber-50/60 border border-amber-100"
+                      : "bg-zinc-950 border border-zinc-800"
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[11px] leading-relaxed break-all font-mono ${row.is_admin_fee ? "text-amber-800" : "text-zinc-300"}`}>
+                      {row.description_raw}
+                    </p>
+                  </div>
+                  <span className={`text-xs font-semibold tabular-nums flex-shrink-0 ${row.db_cr === "D" ? "text-red-400" : "text-green-400"}`}>
+                    {row.db_cr === "D" ? "−" : "+"} {formatRupiah(row.amount)}
+                  </span>
+                </div>
+              ))}
             </div>
+            {group.rows.length > 1 && (
+              <div className="mt-2 flex justify-end">
+                <span className="text-xs text-zinc-500">
+                  Total debit: <strong className="text-zinc-800">{formatRupiah(group.total_debit)}</strong>
+                </span>
+              </div>
+            )}
           </section>
 
           <Separator />
@@ -157,34 +164,18 @@ export function TransactionDetailSheet({
           {/* Parsed fields */}
           <section>
             <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-3">
-              Hasil Parsing Otomatis
+              Hasil Parsing
             </h3>
             <div className="space-y-2">
               {[
-                {
-                  label: "No. Invoice",
-                  value: tx.detected_invoice_no,
-                  mono: true,
-                  accent: "text-indigo-600",
-                },
-                { label: "Keyword terdeteksi", value: tx.detected_keyword, mono: true },
-                { label: "Suggested COA", value: tx.suggested_coa },
-                {
-                  label: "Endpoint Accurate",
-                  value: tx.sync_action ? ENDPOINT_MAP[tx.sync_action] : null,
-                  mono: true,
-                  accent: "text-teal-600",
-                },
+                { label: "No. Invoice",   value: group.detected_invoice_no, mono: true, accent: "text-indigo-600" },
+                { label: "Keyword",       value: group.detected_keyword,    mono: true },
+                { label: "Suggested COA", value: group.suggested_coa },
+                { label: "Modul",         value: group.sync_action ? ENDPOINT_MAP[group.sync_action] : null, mono: false, accent: "text-blue-600" },
               ].map(({ label, value, mono, accent }) => (
                 <div key={label} className="flex items-start gap-3">
                   <span className="text-xs text-zinc-400 w-36 flex-shrink-0 pt-0.5">{label}</span>
-                  <span
-                    className={`text-xs font-medium flex-1 ${
-                      value
-                        ? `${accent ?? "text-zinc-700"} ${mono ? "font-mono" : ""}`
-                        : "text-zinc-300"
-                    }`}
-                  >
+                  <span className={`text-xs font-medium flex-1 ${value ? `${accent ?? "text-zinc-700"} ${mono ? "font-mono" : ""}` : "text-zinc-300"}`}>
                     {value ?? "—"}
                   </span>
                 </div>
@@ -194,81 +185,70 @@ export function TransactionDetailSheet({
 
           <Separator />
 
-          {/* Action section */}
+          {/* Actions */}
           <AnimatePresence mode="wait">
-            {tx.accurate_status === "sudah_tercatat" && (
-              <motion.section
-                key="done"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-              >
-                <div className="rounded-lg bg-zinc-50 border border-zinc-100 px-4 py-3 flex items-start gap-3">
-                  <CheckCircle2 size={14} className="text-zinc-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-zinc-500">
-                    Transaksi ini sudah tercatat di Accurate Online. Tidak ada aksi yang diperlukan.
-                  </p>
+            {group.accurate_status === "sudah_tercatat" && (
+              <motion.section key="done" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-4 py-3 flex items-start gap-3">
+                  <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-emerald-700 font-medium">Berhasil dicatat di Accurate Online</p>
+                    {accurateJournalNo && (
+                      <p className="text-[11px] font-mono text-emerald-600 mt-1">{accurateJournalNo}</p>
+                    )}
+                  </div>
                 </div>
               </motion.section>
             )}
 
-            {tx.accurate_status === "akan_dipush" && (
-              <motion.section
-                key="push"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="space-y-3"
-              >
-                <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
-                  Aksi
-                </h3>
-                <div className="rounded-lg bg-teal-50 border border-teal-100 px-3 py-2.5 flex items-start gap-2">
-                  <ChevronRight size={13} className="text-teal-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-teal-700">
-                    Siap di-push sebagai{" "}
-                    <code className="font-mono bg-teal-100/60 px-1 rounded text-[10px]">
-                      {tx.sync_action}
-                    </code>{" "}
-                    ke Accurate Online.
+            {group.accurate_status === "akan_dipush" && group.sync_action === "purchase-payment" && (
+              <motion.section key="invoice" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+                <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">Aksi</h3>
+                <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-3 flex items-start gap-2">
+                  <AlertCircle size={13} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-amber-700 font-medium">Invoice — Matching Manual di Accurate</p>
+                    <p className="text-[11px] text-amber-600 mt-1 leading-relaxed">
+                      Transaksi ini merupakan pembayaran hutang usaha. Lakukan matching secara manual melalui menu{" "}
+                      <span className="font-semibold">Pembelian → Pembayaran Pembelian</span> di Accurate Online.
+                    </p>
+                  </div>
+                </div>
+              </motion.section>
+            )}
+
+            {group.accurate_status === "akan_dipush" && group.sync_action === "other-payment" && (
+              <motion.section key="push" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
+                <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">Aksi</h3>
+                <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2.5 flex items-start gap-2">
+                  <ChevronRight size={13} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-blue-700">
+                    Push sebagai{" "}
+                    <code className="font-mono bg-blue-100/60 px-1 rounded text-[10px]">{group.sync_action}</code>
+                    {" "}— {group.rows.length} baris dalam satu jurnal.
                   </p>
                 </div>
                 <Button
                   onClick={handlePush}
                   disabled={pushing}
-                  className="w-full bg-zinc-900 hover:bg-zinc-700 text-white text-sm h-9"
-                  aria-label="Push transaksi ini ke Accurate Online"
+                  className="w-full bg-blue-900 hover:bg-blue-800 text-white text-sm h-9"
                 >
-                  {pushing ? (
-                    <><Loader2 size={14} className="animate-spin mr-2" /> Memproses...</>
-                  ) : (
-                    <><ArrowUpRight size={14} className="mr-1.5" /> Push ke Accurate</>
-                  )}
+                  {pushing
+                    ? <><Loader2 size={14} className="animate-spin mr-2" /> Memproses...</>
+                    : <><ArrowUpRight size={14} className="mr-1.5" /> Push Jurnal ke Accurate</>
+                  }
                 </Button>
               </motion.section>
             )}
 
-            {tx.accurate_status === "perlu_review" && (
-              <motion.section
-                key="review"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="space-y-4"
-              >
-                <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
-                  Review Manual
-                </h3>
+            {group.accurate_status === "perlu_review" && (
+              <motion.section key="review" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+                <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">Review Manual</h3>
                 <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5">
-                  <p className="text-xs text-amber-700">
-                    Tidak ada sinyal terdeteksi. Isi nomor invoice atau pilih COA untuk melanjutkan.
-                  </p>
+                  <p className="text-xs text-amber-700">Tidak ada sinyal terdeteksi. Isi nomor invoice atau pilih COA untuk melanjutkan.</p>
                 </div>
-
                 <div className="space-y-1.5">
-                  <Label htmlFor="manual-invoice" className="text-xs text-zinc-600">
-                    Nomor Invoice (opsional)
-                  </Label>
+                  <Label htmlFor="manual-invoice" className="text-xs text-zinc-600">Nomor Invoice (opsional)</Label>
                   <Input
                     id="manual-invoice"
                     placeholder="contoh: 204501234"
@@ -278,29 +258,22 @@ export function TransactionDetailSheet({
                     autoComplete="off"
                   />
                 </div>
-
                 <div className="space-y-1.5">
-                  <Label htmlFor="manual-coa" className="text-xs text-zinc-600">
-                    COA / Kategori Biaya
-                  </Label>
+                  <Label htmlFor="manual-coa" className="text-xs text-zinc-600">COA / Kategori Biaya</Label>
                   <Select value={manualCoa} onValueChange={(v) => setManualCoa(v ?? "")}>
                     <SelectTrigger id="manual-coa" className="h-8 text-sm">
                       <SelectValue placeholder="Pilih COA..." />
                     </SelectTrigger>
                     <SelectContent>
                       {coaOptions.map((coa) => (
-                        <SelectItem key={coa} value={coa} className="text-sm">
-                          {coa}
-                        </SelectItem>
+                        <SelectItem key={coa} value={coa} className="text-sm">{coa}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-
                 <Button
                   onClick={handleManualSubmit}
-                  className="w-full bg-zinc-900 hover:bg-zinc-700 text-white text-sm h-9"
-                  aria-label="Tandai transaksi ini sudah direview dan siap di-push"
+                  className="w-full bg-blue-900 hover:bg-blue-800 text-white text-sm h-9"
                 >
                   Tandai Sudah Direview
                 </Button>

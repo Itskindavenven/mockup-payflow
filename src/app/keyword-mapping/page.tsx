@@ -59,17 +59,18 @@ export default function KeywordMappingPage() {
       toast.error("Pilih akun COA terlebih dahulu.");
       return;
     }
+    const coaNo = EXPENSE_COAS.find((c) => c.name === form.coa)?.code ?? "";
     if (isAdding) {
       setKeywords((prev) => [
         ...prev,
-        { id: `k${nextId++}`, keyword: form.keyword.trim().toLowerCase(), coa: form.coa },
+        { id: `k${nextId++}`, keyword: form.keyword.trim().toLowerCase(), coa: form.coa, coaNo },
       ]);
       toast.success("Keyword berhasil ditambahkan.");
     } else if (editTarget) {
       setKeywords((prev) =>
         prev.map((k) =>
           k.id === editTarget.id
-            ? { ...k, keyword: form.keyword.trim().toLowerCase(), coa: form.coa }
+            ? { ...k, keyword: form.keyword.trim().toLowerCase(), coa: form.coa, coaNo }
             : k
         )
       );
@@ -162,7 +163,7 @@ export default function KeywordMappingPage() {
             </p>
           </div>
           <Button
-            className="h-10 gap-2 bg-zinc-900 hover:bg-zinc-700 text-white"
+            className="h-10 gap-2 bg-blue-900 hover:bg-blue-800 text-white"
             onClick={openAdd}
             aria-label="Tambah keyword mapping baru"
           >
@@ -327,7 +328,7 @@ export default function KeywordMappingPage() {
               Batal
             </Button>
             <Button
-              className="h-10 bg-zinc-900 hover:bg-zinc-700 text-white"
+              className="h-10 bg-blue-900 hover:bg-blue-800 text-white"
               onClick={handleSave}
               aria-label="Simpan keyword mapping"
             >

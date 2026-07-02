@@ -1,0 +1,283 @@
+// Server-only — never import this in client components
+
+export interface AccurateCOA {
+  no: string;
+  name: string;
+  accountType: string;
+}
+
+export interface AccurateVendor {
+  id: number;
+  vendorNo: string;
+  name: string;
+  vendorBranchName: string;
+  bankName?: string;
+  accountNo?: string;
+}
+
+export interface OtherPaymentDetail {
+  accountNo: string;
+  amount: number;
+  memo?: string;
+}
+
+function authHeaders() {
+  return {
+    Authorization: `Bearer ${process.env.ACCURATE_ACCESS_TOKEN}`,
+    "X-Session-ID": process.env.ACCURATE_SESSION!,
+  };
+}
+
+const host = () => process.env.ACCURATE_DB_HOST!;
+
+export async function fetchCOABank(): Promise<AccurateCOA[]> {
+  const params = new URLSearchParams({
+    fields: "no,name,accountType",
+    "sp.pageSize": "100",
+    "filter.accountType.op": "EQUAL",
+    "filter.accountType.val": "CASH_BANK",
+  });
+  const res = await fetch(`${host()}/accurate/api/glaccount/list.do?${params}`, {
+    headers: authHeaders(),
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!json.s) throw new Error("fetchCOABank failed: " + JSON.stringify(json));
+  return json.d;
+}
+
+// Tipe akun yang relevan buat validasi AP: Beban & Beban Lainnya.
+const EXPENSE_ACCOUNT_TYPES = new Set(["EXPENSE", "OTHER_EXPENSE"]);
+
+export async function fetchCOA(): Promise<AccurateCOA[]> {
+  const pageSize = 100;
+  const all: AccurateCOA[] = [];
+  let page = 1;
+  // Accurate cap sp.pageSize di 100/request — paginate sampai halaman terakhir
+  // (length < pageSize) supaya semua akun (315+) kebaca, bukan cuma 200 pertama.
+  for (;;) {
+    const params = new URLSearchParams({
+      fields: "no,name,accountType",
+      "sp.pageSize": String(pageSize),
+      "sp.page": String(page),
+    });
+    const res = await fetch(`${host()}/accurate/api/glaccount/list.do?${params}`, {
+      headers: authHeaders(),
+      cache: "no-store",
+    });
+    const json = await res.json();
+    if (!json.s) throw new Error("fetchCOA failed: " + JSON.stringify(json));
+    const rows: AccurateCOA[] = json.d ?? [];
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+    page += 1;
+  }
+  return all.filter((c) => EXPENSE_ACCOUNT_TYPES.has(c.accountType));
+}
+
+export async function fetchVendors(): Promise<AccurateVendor[]> {
+  const params = new URLSearchParams({
+    fields: "id,name,vendorNo,vendorBranchName",
+    "sp.pageSize": "100",
+  });
+  const res = await fetch(`${host()}/accurate/api/vendor/list.do?${params}`, {
+    headers: authHeaders(),
+    cache: "no-store",
+  });
+  const json = await res.json();
+  if (!json.s) throw new Error("fetchVendors failed: " + JSON.stringify(json));
+  const vendors: AccurateVendor[] = json.d;
+
+  // list.do nggak expose field nested (detailBank) — ambil rekening bank
+  // vendor (kalau ada) lewat detail.do per vendor. detailBank[0] dipakai
+  // (satu vendor bisa punya lebih dari satu rekening, kita ambil yang utama).
+  await Promise.all(
+    vendors.map(async (v) => {
+      try {
+        const detailRes = await fetch(`${host()}/accurate/api/vendor/detail.do?id=${v.id}`, {
+          headers: authHeaders(),
+          cache: "no-store",
+        });
+        const detailJson = await detailRes.json();
+        const bank = detailJson?.d?.detailBank?.[0];
+        if (bank) {
+          v.bankName = bank.bankName ?? bank.bank ?? undefined;
+          v.accountNo = bank.accountNo ?? bank.bankAccountNo ?? undefined;
+        }
+      } catch {
+        // biarin vendor tanpa info bank kalau gagal fetch detail-nya
+      }
+    })
+  );
+
+  return vendors;
+}
+
+export interface AdminFeeEntry {
+  transDate: string; // dd/MM/yyyy
+  accountNo: string;
+  accountName: string;
+  amount: number;
+}
+
+// Biaya admin (bank fee) per periode — dikorek dari other-payment yang sudah
+// terposting di Accurate, baris detail yang nama akunnya mengandung "admin".
+export async function fetchOtherPaymentAdminFees(fromDate: string, toDate: string): Promise<AdminFeeEntry[]> {
+  const listParams = new URLSearchParams({
+    fields: "id,transDate",
+    "sp.pageSize": "100",
+    "filter.transDate.op": "BETWEEN",
+  });
+  listParams.append("filter.transDate.val[0]", fromDate);
+  listParams.append("filter.transDate.val[1]", toDate);
+  const listRes = await fetch(`${host()}/accurate/api/other-payment/list.do?${listParams}`, {
+    headers: authHeaders(),
+    cache: "no-store",
+  });
+  const listJson = await listRes.json();
+  if (!listJson.s) throw new Error("fetchOtherPaymentAdminFees failed: " + JSON.stringify(listJson));
+
+  const entries: AdminFeeEntry[] = [];
+  for (const row of listJson.d as { id: number; transDate: string }[]) {
+    const res = await fetch(`${host()}/accurate/api/other-payment/detail.do?id=${row.id}`, {
+      headers: authHeaders(),
+      cache: "no-store",
+    });
+    const json = await res.json();
+    if (!json.s) continue;
+    const detailAccount = json.d?.detailAccount ?? [];
+    for (const line of detailAccount) {
+      const accountName: string = line.account?.name ?? line.expenseName ?? "";
+      if (/admin/i.test(accountName)) {
+        entries.push({
+          transDate: json.d.transDate ?? row.transDate,
+          accountNo: line.account?.no ?? "",
+          accountName,
+          amount: line.amount ?? 0,
+        });
+      }
+    }
+  }
+  return entries;
+}
+
+export interface VendorPaymentEntry {
+  transDate: string; // dd/MM/yyyy
+  vendorNo: string;
+  vendorName: string;
+  amount: number;
+}
+
+// Pembayaran ke vendor (Pembayaran Pembelian) per periode, buat report per vendor.
+export async function fetchPurchasePaymentsByVendor(fromDate: string, toDate: string): Promise<VendorPaymentEntry[]> {
+  const listParams = new URLSearchParams({
+    fields: "id,transDate,chequeAmount",
+    "sp.pageSize": "100",
+    "filter.transDate.op": "BETWEEN",
+  });
+  listParams.append("filter.transDate.val[0]", fromDate);
+  listParams.append("filter.transDate.val[1]", toDate);
+  const listRes = await fetch(`${host()}/accurate/api/purchase-payment/list.do?${listParams}`, {
+    headers: authHeaders(),
+    cache: "no-store",
+  });
+  const listJson = await listRes.json();
+  if (!listJson.s) throw new Error("fetchPurchasePaymentsByVendor failed: " + JSON.stringify(listJson));
+
+  const entries: VendorPaymentEntry[] = [];
+  for (const row of listJson.d as { id: number; transDate: string; chequeAmount: number }[]) {
+    const res = await fetch(`${host()}/accurate/api/purchase-payment/detail.do?id=${row.id}`, {
+      headers: authHeaders(),
+      cache: "no-store",
+    });
+    const json = await res.json();
+    if (!json.s) continue;
+    entries.push({
+      transDate: json.d.transDate ?? row.transDate,
+      vendorNo: json.d.vendor?.no ?? "-",
+      vendorName: json.d.vendor?.name ?? "Tidak diketahui",
+      amount: json.d.chequeAmount ?? row.chequeAmount ?? 0,
+    });
+  }
+  return entries;
+}
+
+export async function pushOtherPayment(payload: {
+  bankNo: string;
+  payee: string;
+  transDate: string; // dd/MM/yyyy
+  detailAccount: OtherPaymentDetail[];
+  branchName?: string;
+  description?: string;
+}) {
+  const body = new URLSearchParams();
+  body.set("bankNo", payload.bankNo);
+  body.set("payee", payload.payee);
+  body.set("transDate", payload.transDate);
+  if (payload.description) body.set("description", payload.description);
+  if (payload.branchName) body.set("branchName", payload.branchName);
+  payload.detailAccount.forEach((row, i) => {
+    body.set(`detailAccount[${i}].accountNo`, row.accountNo);
+    body.set(`detailAccount[${i}].amount`, String(row.amount));
+    if (row.memo) body.set(`detailAccount[${i}].memo`, row.memo);
+  });
+  const res = await fetch(`${host()}/accurate/api/other-payment/save.do`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  return res.json();
+}
+
+// Master bank Accurate (dari endpoint pencarian bank internal mereka) — id
+// dan beneBankId WAJIB dikirim berpasangan pas nyimpen detailBank vendor,
+// kalau nggak Accurate nolak dengan "Rekening Bank tidak terdaftar".
+// Diverifikasi langsung ke API real (bukan tebakan).
+export const BANK_MASTER = {
+  BRI:     { vendorBankId: "200", bankId: "002", bankName: "BANK RAKYAT INDONESIA",    sortBankName: "BRI" },
+  MANDIRI: { vendorBankId: "201", bankId: "008", bankName: "BANK MANDIRI",             sortBankName: "MANDIRI" },
+  BNI:     { vendorBankId: "202", bankId: "009", bankName: "BANK NEGARA INDONESIA 1946", sortBankName: "BNI" },
+  BCA:     { vendorBankId: "203", bankId: "014", bankName: "BANK CENTRAL ASIA",        sortBankName: "BCA" },
+  CIMB:    { vendorBankId: "217", bankId: "022", bankName: "BANK CIMB NIAGA",          sortBankName: "CIMB NIAGA" },
+  PERMATA: { vendorBankId: "214", bankId: "013", bankName: "BANK PERMATA",             sortBankName: "PERMATA" },
+} as const;
+
+export type BankKey = keyof typeof BANK_MASTER;
+
+// Tambah vendor baru (nama vendor + 1 rekening bank vendor). Field nested
+// detailBank[0].* diverifikasi langsung ke API real Accurate lewat network
+// trace form "Tambah Vendor" mereka sendiri — bukan tebakan:
+//   bankAccount (no rekening), bankAccountName (nama pemilik rekening),
+//   bankName/sortBankName/bankId/vendorBankId (identitas bank, harus match
+//   pasangan valid dari master bank Accurate, lihat BANK_MASTER di atas).
+export async function saveVendor(payload: {
+  name: string;
+  bank: BankKey;
+  accountName: string;
+  accountNo: string;
+}): Promise<{ s: boolean; d: unknown }> {
+  const bank = BANK_MASTER[payload.bank];
+  const body = new URLSearchParams();
+  body.set("name", payload.name);
+  body.set("detailBank[0]._status", "insert");
+  body.set("detailBank[0].seq", "1");
+  body.set("detailBank[0].bankAccount", payload.accountNo);
+  body.set("detailBank[0].bankAccountName", payload.accountName);
+  body.set("detailBank[0].bankName", bank.bankName);
+  body.set("detailBank[0].sortBankName", bank.sortBankName);
+  body.set("detailBank[0].bankId", bank.bankId);
+  body.set("detailBank[0].vendorBankId", bank.vendorBankId);
+  const res = await fetch(`${host()}/accurate/api/vendor/save.do`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Accurate kadang balikin XML/HTML (mis. InsufficientScopeException) kalau
+    // token OAuth-nya kurang scope — bukan JSON, jadi tampilkan apa adanya.
+    return { s: false, d: [text || `HTTP ${res.status}`] };
+  }
+}

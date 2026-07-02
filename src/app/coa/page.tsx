@@ -86,7 +86,7 @@ export default function COAPage() {
             </p>
           </div>
           <Button
-            className="h-10 gap-2 bg-zinc-900 hover:bg-zinc-700 text-white"
+            className="h-10 gap-2 bg-blue-900 hover:bg-blue-800 text-white"
             onClick={handleSync}
             disabled={isSyncing}
             aria-label="Sinkronisasi ulang Master COA dari Accurate Online"
@@ -203,7 +203,7 @@ export default function COAPage() {
                     </span>
                   </div>
                   <div className="text-center">
-                    <span className={`inline-block w-2 h-2 rounded-full ${coa.is_active ? "bg-teal-400" : "bg-zinc-300"}`} aria-label={coa.is_active ? "Aktif" : "Tidak aktif"} />
+                    <span className={`inline-block w-2 h-2 rounded-full ${coa.is_active ? "bg-blue-400" : "bg-zinc-300"}`} aria-label={coa.is_active ? "Aktif" : "Tidak aktif"} />
                   </div>
                 </motion.div>
               ))}
@@ -227,7 +227,7 @@ export default function COAPage() {
             Posisi Normal Kredit
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-teal-400 inline-block" />
+            <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />
             Aktif di Accurate
           </span>
         </motion.div>
