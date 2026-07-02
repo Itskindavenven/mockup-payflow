@@ -10,7 +10,7 @@ function secret(): Uint8Array {
 }
 
 const PUBLIC_PATHS = new Set(["/login"]);
-const PUBLIC_PREFIXES = ["/api/app-auth/", "/_next/", "/favicon"];
+const PUBLIC_PREFIXES = ["/api/app-auth/", "/api/auth/", "/_next/", "/favicon"];
 
 // Routes that require a specific permission (employees only — admins always pass)
 const ROUTE_PERMISSIONS: Record<string, string> = {
