@@ -39,7 +39,11 @@ function LoginForm() {
       // Hard navigation: root layout reads the session cookie server-side,
       // and a client-side router.replace would keep serving the stale
       // (logged-out) layout since it's shared across soft navigations.
-      window.location.href = from.startsWith("/login") ? "/transaksi" : from;
+      // `from` must be an internal app page — reject /login (redirect loop)
+      // and /api/* (e.g. a stale Accurate OAuth callback URL left in the
+      // address bar), which aren't pages a logged-in user should land on.
+      const isSafeTarget = from.startsWith("/") && !from.startsWith("/login") && !from.startsWith("/api/");
+      window.location.href = isSafeTarget ? from : "/transaksi";
     } catch {
       toast.error("Koneksi ke server gagal.");
     } finally {
