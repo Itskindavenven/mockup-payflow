@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -11,19 +11,20 @@ import {
   Settings,
   Unplug,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { ACCURATE_DATABASES } from "@/lib/mock-data";
 
-const ENV_LABEL: Record<string, string> = {
-  production: "Produksi",
-  training: "Training",
-  archive: "Arsip",
-};
+interface AccurateDb {
+  id: string;
+  name: string;
+  dbCode: string;
+  expired: boolean;
+}
 
 const PUSH_MODES = [
   {
@@ -38,12 +39,29 @@ const PUSH_MODES = [
   },
 ];
 
-const connectedDb = ACCURATE_DATABASES.find((db) => db.connected)!;
-
 export default function SettingsPage() {
   const [isReconnecting, setIsReconnecting] = useState(false);
-  const [activeDb, setActiveDb] = useState(connectedDb.id);
+  const [databases, setDatabases] = useState<AccurateDb[]>([]);
+  const [isLoadingDbs, setIsLoadingDbs] = useState(true);
+  const [activeDb, setActiveDb] = useState("");
   const [pushMode, setPushMode] = useState<"manual" | "auto">("manual");
+
+  useEffect(() => {
+    fetch("/api/accurate/databases")
+      .then((r) => r.json())
+      .then((data: AccurateDb[] | { error: string }) => {
+        if (Array.isArray(data)) {
+          setDatabases(data);
+          setActiveDb((prev) => prev || data[0]?.id || "");
+        } else {
+          toast.error("Gagal memuat daftar database dari Accurate: " + data.error);
+        }
+      })
+      .catch(() => toast.error("Gagal memuat daftar database dari Accurate."))
+      .finally(() => setIsLoadingDbs(false));
+  }, []);
+
+  const connectedDb = databases.find((db) => db.id === activeDb) ?? databases[0];
 
   function handleReconnect() {
     setIsReconnecting(true);
@@ -95,8 +113,8 @@ export default function SettingsPage() {
                       Live
                     </span>
                   </div>
-                  <p className="text-sm text-zinc-700 mt-0.5 font-medium">{connectedDb.name}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5 font-mono">{connectedDb.dbCode}</p>
+                  <p className="text-sm text-zinc-700 mt-0.5 font-medium">{connectedDb?.name ?? "Memuat..."}</p>
+                  <p className="text-xs text-zinc-400 mt-0.5 font-mono">{connectedDb?.dbCode ?? ""}</p>
                   <p className="text-xs text-zinc-400 mt-0.5">bonaventuraoctavito@gmail.com</p>
                 </div>
               </div>
@@ -120,8 +138,8 @@ export default function SettingsPage() {
                 <p className="font-medium text-zinc-700">03 Jul 2026</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-400 mb-1">Lingkungan</p>
-                <p className="font-medium text-zinc-700 capitalize">{ENV_LABEL[connectedDb.env]}</p>
+                <p className="text-xs text-zinc-400 mb-1">Jumlah Database</p>
+                <p className="font-medium text-zinc-700">{databases.length} database</p>
               </div>
               <div>
                 <p className="text-xs text-zinc-400 mb-1">Versi API</p>
@@ -151,64 +169,59 @@ export default function SettingsPage() {
           </p>
 
           <div className="space-y-2">
-            {ACCURATE_DATABASES.map((db) => (
-              <div
-                key={db.id}
-                className={`rounded-xl border transition-colors duration-150 overflow-hidden ${
-                  activeDb === db.id ? "border-blue-900" : "border-zinc-200"
-                }`}
-              >
+            {isLoadingDbs ? (
+              <div className="flex items-center justify-center py-10 text-zinc-400">
+                <Loader2 size={18} className="animate-spin" />
+              </div>
+            ) : databases.length === 0 ? (
+              <p className="text-sm text-zinc-400 py-6 text-center">
+                Gagal memuat daftar database dari Accurate.
+              </p>
+            ) : (
+              databases.map((db) => (
                 <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    if (!db.connected) return;
-                    setActiveDb(db.id);
-                    toast.success(`Database "${db.name}" dipilih.`);
-                  }}
-                  onKeyDown={(e) => {
-                    if ((e.key === "Enter" || e.key === " ") && db.connected) {
-                      setActiveDb(db.id);
-                    }
-                  }}
-                  className={`w-full text-left flex items-center justify-between px-5 py-4 transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    activeDb === db.id ? "bg-zinc-50" : "bg-white hover:bg-zinc-50"
-                  } ${db.connected ? "cursor-pointer" : "cursor-default"}`}
-                  aria-pressed={activeDb === db.id}
-                  aria-label={`Database ${db.name}`}
+                  key={db.id}
+                  className={`rounded-xl border transition-colors duration-150 overflow-hidden ${
+                    activeDb === db.id ? "border-blue-900" : "border-zinc-200"
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-colors ${
-                      activeDb === db.id ? "border-blue-900 bg-blue-900" : "border-zinc-300"
-                    }`} aria-hidden="true">
-                      {activeDb === db.id && (
-                        <div className="w-1.5 h-1.5 bg-white rounded-full m-auto mt-[3px]" />
-                      )}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      setActiveDb(db.id);
+                      toast.success(`Database "${db.name}" dipilih.`);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") setActiveDb(db.id);
+                    }}
+                    className={`w-full text-left flex items-center justify-between px-5 py-4 transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer ${
+                      activeDb === db.id ? "bg-zinc-50" : "bg-white hover:bg-zinc-50"
+                    }`}
+                    aria-pressed={activeDb === db.id}
+                    aria-label={`Database ${db.name}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-colors ${
+                        activeDb === db.id ? "border-blue-900 bg-blue-900" : "border-zinc-300"
+                      }`} aria-hidden="true">
+                        {activeDb === db.id && (
+                          <div className="w-1.5 h-1.5 bg-white rounded-full m-auto mt-[3px]" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-zinc-800">{db.name}</p>
+                        <p className="text-xs text-zinc-400 font-mono mt-0.5">{db.dbCode}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-zinc-800">{db.name}</p>
-                      <p className="text-xs text-zinc-400 font-mono mt-0.5">{db.dbCode}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {db.connected && (
+                    <div className="flex items-center gap-2">
                       <span className="flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         Terkoneksi
                       </span>
-                    )}
-                    <Badge
-                      className={`text-xs font-medium px-2.5 ${
-                        db.env === "production"
-                          ? "bg-blue-50 text-blue-700 border-blue-100"
-                          : db.env === "training"
-                          ? "bg-amber-50 text-amber-700 border-amber-100"
-                          : "bg-zinc-100 text-zinc-400 border-zinc-200"
-                      }`}
-                    >
-                      {ENV_LABEL[db.env]}
-                    </Badge>
-                    {db.connected ? (
+                      <Badge className="text-xs font-medium px-2.5 bg-amber-50 text-amber-700 border-amber-100">
+                        Sample
+                      </Badge>
                       <Link
                         href={`/settings/database/${db.id}`}
                         onClick={(e) => e.stopPropagation()}
@@ -219,20 +232,11 @@ export default function SettingsPage() {
                         Detail
                         <ChevronRight size={13} aria-hidden="true" />
                       </Link>
-                    ) : (
-                      <span
-                        className="flex items-center gap-0.5 text-xs font-medium text-zinc-300 px-2 py-1 cursor-not-allowed"
-                        title="Database ini belum terhubung"
-                        aria-disabled="true"
-                      >
-                        Detail
-                        <ChevronRight size={13} aria-hidden="true" />
-                      </span>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </motion.div>
 

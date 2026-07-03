@@ -21,6 +21,12 @@ export interface ApSessionRecord {
   pushedIds: string[];
   resolvedIds: string[];
   accurateJournalNos: Record<string, string>;
+  // COA/nomor invoice yang diisi manual lewat sheet review, untuk group
+  // yang tadinya "perlu_review" (nggak ada sinyal invoice/keyword) —
+  // tanpa ini, "Tandai Sudah Direview" cuma mengubah badge status tapi
+  // group-nya tetap nggak bisa di-push (suggested_coa_no/sync_action
+  // tetap kosong).
+  manualOverrides?: Record<string, { coaNo?: string; invoiceNo?: string }>;
   status: ApSessionStatus;
 }
 

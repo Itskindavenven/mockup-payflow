@@ -56,7 +56,7 @@ interface TransactionDetailSheetProps {
   onClose: () => void;
   keywordMap: KeywordEntry[];
   onPush: (group_id: string) => void;
-  onManualResolve: (group_id: string) => void;
+  onManualResolve: (group_id: string, override: { coaNo?: string; invoiceNo?: string }) => void;
   accurateJournalNo?: string;
 }
 
@@ -93,7 +93,12 @@ export function TransactionDetailSheet({
       toast.error("Isi nomor invoice atau pilih COA terlebih dahulu.");
       return;
     }
-    onManualResolve(group!.group_id);
+    const coaNo = keywordMap.find((k) => k.coa === manualCoa)?.coaNo;
+    if (manualCoa && !coaNo) {
+      toast.error("COA yang dipilih tidak dikenali.");
+      return;
+    }
+    onManualResolve(group!.group_id, { coaNo, invoiceNo: manualInvoice || undefined });
     setManualInvoice("");
     setManualCoa("");
     onClose();
@@ -277,6 +282,12 @@ export function TransactionDetailSheet({
                 >
                   Tandai Sudah Direview
                 </Button>
+                {!manualCoa && (
+                  <p className="text-[11px] text-zinc-400">
+                    Tanpa COA, jurnal ditandai sudah direview tapi belum otomatis siap di-push
+                    (perlu COA untuk push sebagai Pengeluaran Lain).
+                  </p>
+                )}
               </motion.section>
             )}
           </AnimatePresence>

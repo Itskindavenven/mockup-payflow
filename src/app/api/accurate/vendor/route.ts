@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/session";
 import { saveVendor, BANK_MASTER, BankKey } from "@/lib/accurate-api";
+import { resolveAccurateDbId } from "@/lib/db-alias";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession();
@@ -13,6 +14,7 @@ export async function POST(req: NextRequest) {
     bankName?: string;
     accountName?: string;
     accountNo?: string;
+    dbId?: string;
   };
 
   if (!body.name || !body.bankName || !body.accountName || !body.accountNo) {
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await saveVendor({
+    const result = await saveVendor(resolveAccurateDbId(body.dbId ?? "db-retail"), {
       name: body.name,
       bank: bankKey,
       accountName: body.accountName,

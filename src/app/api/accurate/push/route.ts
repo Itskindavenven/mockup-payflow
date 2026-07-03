@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pushOtherPayment, OtherPaymentDetail } from "@/lib/accurate-api";
+import { resolveAccurateDbId } from "@/lib/db-alias";
 
 interface PushBody {
   sync_action: "other-payment" | "purchase-payment";
@@ -9,6 +10,7 @@ interface PushBody {
   detailAccount: OtherPaymentDetail[];
   branchName?: string;
   description?: string;
+  dbId?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await pushOtherPayment({
+    const result = await pushOtherPayment(resolveAccurateDbId(body.dbId ?? "db-retail"), {
       bankNo: body.bankNo,
       payee: body.payee,
       transDate: body.transDate,

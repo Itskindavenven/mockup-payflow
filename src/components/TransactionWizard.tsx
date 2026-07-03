@@ -20,8 +20,6 @@ import {
 import type { Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
-  ACCURATE_DATABASES,
-  AccurateDatabase,
   COAEntry,
   RAW_TRANSACTIONS,
   ALREADY_RECORDED_IN_ACCURATE,
@@ -39,8 +37,15 @@ interface WizardDbConfig {
   vendorNos: string[];
 }
 
+export interface AccurateDb {
+  id: string;
+  name: string;
+  dbCode: string;
+  expired: boolean;
+}
+
 export interface SessionConfig {
-  database: AccurateDatabase;
+  database: AccurateDb;
   kasBank: COAEntry;
   branchName: string | null;  // derived from bank account name
   selectedVendorCodes: string[];
@@ -77,17 +82,6 @@ function vendorBankLabel(v: ApiVendor): string | null {
   return [v.bankName, v.accountNo].filter(Boolean).join(" - ");
 }
 
-const ENV_BADGE: Record<AccurateDatabase["env"], string> = {
-  production: "bg-blue-50 text-blue-700 border-blue-100",
-  training:   "bg-amber-50 text-amber-700 border-amber-100",
-  archive:    "bg-zinc-100 text-zinc-500 border-zinc-200",
-};
-const ENV_LABEL: Record<AccurateDatabase["env"], string> = {
-  production: "Production",
-  training:   "Training",
-  archive:    "Archive",
-};
-
 const FADE: Variants = {
   hidden: { opacity: 0, x: 16 },
   show:   { opacity: 1, x: 0,  transition: { duration: 0.22 } },
@@ -96,52 +90,57 @@ const FADE: Variants = {
 
 // ─── Step 1 ────────────────────────────────────────────────────────────────
 function StepDatabase({
+  databases,
+  isLoading,
   selected,
   onSelect,
 }: {
-  selected: AccurateDatabase | null;
-  onSelect: (db: AccurateDatabase) => void;
+  databases: AccurateDb[];
+  isLoading: boolean;
+  selected: AccurateDb | null;
+  onSelect: (db: AccurateDb) => void;
 }) {
   return (
     <motion.div key="step-db" variants={FADE} initial="hidden" animate="show" exit="exit">
       <StepHeader icon={ServerIcon} title="Pilih Database Accurate" subtitle="Pilih environment yang akan digunakan untuk sesi ini." />
-      <div className="space-y-2">
-        {ACCURATE_DATABASES.map((db) => {
-          const active = selected?.id === db.id;
-          return (
-            <button
-              key={db.id}
-              onClick={() => onSelect(db)}
-              className={`w-full text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 transition-all duration-100 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                active
-                  ? "border-blue-600 bg-blue-50/60 shadow-sm"
-                  : "border-zinc-200 bg-white hover:border-zinc-300"
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
-                  active ? "border-blue-600 bg-blue-600" : "border-zinc-300"
+      {isLoading ? (
+        <div className="flex items-center justify-center py-10 text-zinc-400">
+          <Loader2 size={18} className="animate-spin" />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {databases.map((db) => {
+            const active = selected?.id === db.id;
+            return (
+              <button
+                key={db.id}
+                onClick={() => onSelect(db)}
+                className={`w-full text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 transition-all duration-100 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                  active
+                    ? "border-blue-600 bg-blue-50/60 shadow-sm"
+                    : "border-zinc-200 bg-white hover:border-zinc-300"
                 }`}
               >
-                {active && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-zinc-800">{db.name}</p>
-                <p className="text-xs text-zinc-400 font-mono mt-0.5">{db.dbCode}</p>
-              </div>
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${ENV_BADGE[db.env]}`}>
-                {ENV_LABEL[db.env]}
-              </span>
-              {db.connected && (
+                <div
+                  className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+                    active ? "border-blue-600 bg-blue-600" : "border-zinc-300"
+                  }`}
+                >
+                  {active && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-zinc-800">{db.name}</p>
+                  <p className="text-xs text-zinc-400 font-mono mt-0.5">{db.dbCode}</p>
+                </div>
                 <span className="flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full font-medium">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   Live
                 </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -491,7 +490,9 @@ export function TransactionWizard({ keywordMap, onComplete, reuseSession }: Tran
   const canConfigure = session?.role === "admin" || (session?.permissions ?? []).includes("master-data");
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [selectedDb, setSelectedDb] = useState<AccurateDatabase | null>(null);
+  const [databases, setDatabases] = useState<AccurateDb[]>([]);
+  const [isLoadingDbs, setIsLoadingDbs] = useState(true);
+  const [selectedDb, setSelectedDb] = useState<AccurateDb | null>(null);
   const [selectedBank, setSelectedBank] = useState<COAEntry | null>(null);
   const [selectedVendors, setSelectedVendors] = useState<Set<string>>(new Set());
   // Kalau reuse dari sesi lama, file & datanya udah ada — step Upload langsung "done".
@@ -505,19 +506,30 @@ export function TransactionWizard({ keywordMap, onComplete, reuseSession }: Tran
   const [isLoadingMaster, setIsLoadingMaster] = useState(true);
 
   useEffect(() => {
-    const connected = ACCURATE_DATABASES.find((db) => db.connected);
-    if (connected) setSelectedDb(connected);
+    fetch("/api/accurate/databases")
+      .then((r) => r.json())
+      .then((data: AccurateDb[] | { error: string }) => {
+        if (!Array.isArray(data)) return;
+        setDatabases(data);
+        // "db-retail" tetap jadi default legacy — kalau nggak ada, pakai yang pertama.
+        const preferred = data.find((db) => db.id === "db-retail") ?? data[0];
+        if (preferred) setSelectedDb(preferred);
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingDbs(false));
   }, []);
 
   useEffect(() => {
-    const connected = ACCURATE_DATABASES.find((db) => db.connected);
-    const configFetch: Promise<WizardDbConfig> = canConfigure || !connected
+    if (!selectedDb) return;
+    const dbId = selectedDb.id;
+    const configFetch: Promise<WizardDbConfig> = canConfigure
       ? Promise.resolve({ bankAccountNo: null, vendorNos: [] })
-      : fetch(`/api/wizard-config/${connected.id}`).then((r) => r.json());
+      : fetch(`/api/wizard-config/${dbId}`).then((r) => r.json());
 
+    setIsLoadingMaster(true);
     Promise.all([
-      fetch("/api/accurate/coa-bank").then((r) => r.json()),
-      fetch("/api/accurate/vendors").then((r) => r.json()),
+      fetch(`/api/accurate/coa-bank?dbId=${dbId}`).then((r) => r.json()),
+      fetch(`/api/accurate/vendors?dbId=${dbId}`).then((r) => r.json()),
       configFetch,
     ])
       .then(([bankData, vendorData, config]: [ApiBankCOA[], ApiVendor[], WizardDbConfig]) => {
@@ -551,7 +563,7 @@ export function TransactionWizard({ keywordMap, onComplete, reuseSession }: Tran
       })
       .finally(() => setIsLoadingMaster(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canConfigure]);
+  }, [selectedDb?.id, canConfigure]);
 
   function toggleVendor(code: string) {
     setSelectedVendors((prev) => {
@@ -667,7 +679,7 @@ export function TransactionWizard({ keywordMap, onComplete, reuseSession }: Tran
       <div className="w-full max-w-md">
         <AnimatePresence mode="wait">
           {step === 1 && (
-            <StepDatabase selected={selectedDb} onSelect={setSelectedDb} />
+            <StepDatabase databases={databases} isLoading={isLoadingDbs} selected={selectedDb} onSelect={setSelectedDb} />
           )}
           {step === 2 && (
             <StepKasBank

@@ -34,11 +34,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AppShell } from "@/components/AppShell";
-import { TransactionWizard, SessionConfig, ReuseSession } from "@/components/TransactionWizard";
+import { TransactionWizard, SessionConfig, ReuseSession, AccurateDb } from "@/components/TransactionWizard";
 import { TransactionTable } from "@/components/TransactionTable";
 import { TransactionDetailSheet } from "@/components/TransactionDetailSheet";
 import { useSession } from "@/components/session-provider";
-import { ACCURATE_DATABASES, AccurateDatabase } from "@/lib/mock-data";
 import {
   DEFAULT_KEYWORD_MAP,
   JournalGroup,
@@ -67,6 +66,7 @@ interface ApSessionRecordShape {
   pushedIds: string[];
   resolvedIds: string[];
   accurateJournalNos: Record<string, string>;
+  manualOverrides?: Record<string, { coaNo?: string; invoiceNo?: string }>;
   status: "draft" | "selesai";
 }
 
@@ -84,14 +84,13 @@ function vendorBankLabel(v: ApiVendor): string | null {
 }
 
 function sessionConfigFromRecord(record: ApSessionRecordShape): SessionConfig {
-  const db = ACCURATE_DATABASES.find((d) => d.id === record.database.id) ?? {
-    id: record.database.id,
-    name: record.database.name,
-    dbCode: record.database.dbCode,
-    env: "training" as const,
-  };
   return {
-    database: db,
+    database: {
+      id: record.database.id,
+      name: record.database.name,
+      dbCode: record.database.dbCode,
+      expired: false,
+    },
     kasBank: { code: record.kasBank.code, name: record.kasBank.name, type: "Aset Lancar", normal_balance: "D", is_active: true },
     branchName: record.branchName,
     selectedVendorCodes: record.selectedVendorCodes,
@@ -119,6 +118,7 @@ function TransaksiPageInner() {
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   const [vendorOptions, setVendorOptions] = useState<ApiVendor[]>([]);
+  const [databaseOptions, setDatabaseOptions] = useState<AccurateDb[]>([]);
   const [dbPickerOpen, setDbPickerOpen] = useState(false);
   const [vendorPickerOpen, setVendorPickerOpen] = useState(false);
   const [vendorPickerSearch, setVendorPickerSearch] = useState("");
@@ -128,6 +128,7 @@ function TransaksiPageInner() {
   const [pushingId, setPushingId] = useState<string | null>(null);
   const [isPushingAll, setIsPushingAll] = useState(false);
   const [accurateJournalNos, setAccurateJournalNos] = useState<Map<string, string>>(new Map());
+  const [manualOverrides, setManualOverrides] = useState<Map<string, { coaNo?: string; invoiceNo?: string }>>(new Map());
 
   const [filter, setFilter] = useState<FilterStatus>("semua");
   const [search, setSearch] = useState("");
@@ -149,6 +150,7 @@ function TransaksiPageInner() {
           setPushedIds(new Set(record.pushedIds));
           setResolvedIds(new Set(record.resolvedIds));
           setAccurateJournalNos(new Map(Object.entries(record.accurateJournalNos)));
+          setManualOverrides(new Map(Object.entries(record.manualOverrides ?? {})));
           setMode("table");
         })
         .catch(() => toast.error("Draft tidak ditemukan."))
@@ -169,9 +171,18 @@ function TransaksiPageInner() {
 
   // Nama vendor (buat dropdown vendor di toolbar) — sessi cuma nyimpen kode-nya.
   useEffect(() => {
-    fetch("/api/accurate/vendors")
+    if (!sessionConfig) return;
+    fetch(`/api/accurate/vendors?dbId=${sessionConfig.database.id}`)
       .then((r) => r.json())
       .then((data: ApiVendor[]) => setVendorOptions(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [sessionConfig?.database.id]);
+
+  // Daftar database real (buat dropdown "Ganti Database").
+  useEffect(() => {
+    fetch("/api/accurate/databases")
+      .then((r) => r.json())
+      .then((data: AccurateDb[] | { error: string }) => setDatabaseOptions(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
@@ -184,11 +195,35 @@ function TransaksiPageInner() {
         .map((g) => {
           let accurate_status = g.accurate_status;
           if (pushedIds.has(g.group_id)) accurate_status = "sudah_tercatat";
-          if (resolvedIds.has(g.group_id) && accurate_status === "perlu_review")
-            accurate_status = "akan_dipush";
-          return { ...g, accurate_status };
+
+          const override = manualOverrides.get(g.group_id);
+          let group = g;
+          if (resolvedIds.has(g.group_id) && accurate_status === "perlu_review") {
+            // Manual review cuma bisa bikin group beneran pushable kalau ada
+            // COA yang diisi — tanpa itu, status tetap "perlu_review" (cuma
+            // invoice tercatat) supaya nggak jadi "akan_dipush" hantu yang
+            // gagal push diam-diam.
+            if (override?.coaNo) {
+              accurate_status = "akan_dipush";
+              group = {
+                ...g,
+                suggested_coa_no: override.coaNo,
+                sync_action: "other-payment",
+                detected_invoice_no: override.invoiceNo ?? g.detected_invoice_no,
+                rows: g.rows.map((r) =>
+                  r.db_cr === "D" ? { ...r, suggested_coa_no: override.coaNo ?? null } : r
+                ),
+                primary: g.primary.db_cr === "D"
+                  ? { ...g.primary, suggested_coa_no: override.coaNo ?? null }
+                  : g.primary,
+              };
+            } else if (override?.invoiceNo) {
+              group = { ...g, detected_invoice_no: override.invoiceNo };
+            }
+          }
+          return { ...group, accurate_status };
         }),
-    [baseGroups, pushedIds, resolvedIds]
+    [baseGroups, pushedIds, resolvedIds, manualOverrides]
   );
 
   const counts = useMemo(
@@ -234,6 +269,7 @@ function TransaksiPageInner() {
     newPushedIds: Set<string>,
     newResolvedIds: Set<string>,
     newJournalNos: Map<string, string>,
+    newManualOverrides: Map<string, { coaNo?: string; invoiceNo?: string }> = manualOverrides,
     { silent = true }: { silent?: boolean } = {}
   ) {
     if (!sessionId) return;
@@ -245,6 +281,7 @@ function TransaksiPageInner() {
           pushedIds: Array.from(newPushedIds),
           resolvedIds: Array.from(newResolvedIds),
           accurateJournalNos: Object.fromEntries(newJournalNos),
+          manualOverrides: Object.fromEntries(newManualOverrides),
           status: sessionStatusFor(newPushedIds, newResolvedIds),
         }),
       });
@@ -256,7 +293,7 @@ function TransaksiPageInner() {
 
   async function handleSaveDraft() {
     setIsSavingDraft(true);
-    await syncSession(pushedIds, resolvedIds, accurateJournalNos, { silent: false });
+    await syncSession(pushedIds, resolvedIds, accurateJournalNos, manualOverrides, { silent: false });
     setIsSavingDraft(false);
   }
 
@@ -276,7 +313,7 @@ function TransaksiPageInner() {
     toast.success("Laporan PDF berhasil diunduh.");
   }
 
-  async function handleChangeDatabase(db: AccurateDatabase) {
+  async function handleChangeDatabase(db: AccurateDb) {
     if (!canConfigure || !sessionConfig) return;
     setSessionConfig({ ...sessionConfig, database: db });
     setDbPickerOpen(false);
@@ -331,6 +368,7 @@ function TransaksiPageInner() {
         transDate: toAccurateDate(group.post_date),
         payee: cleanDescription(group.primary.description_raw),
         detailAccount,
+        dbId: sessionConfig.database.id,
         ...(sessionConfig.branchName ? { branchName: sessionConfig.branchName } : {}),
       }),
     });
@@ -453,11 +491,17 @@ function TransaksiPageInner() {
     }
   }
 
-  function handleManualResolve(group_id: string) {
+  function handleManualResolve(group_id: string, override: { coaNo?: string; invoiceNo?: string }) {
     const newResolvedIds = new Set(resolvedIds).add(group_id);
+    const newManualOverrides = new Map(manualOverrides).set(group_id, override);
     setResolvedIds(newResolvedIds);
-    toast.success("Ditandai sudah direview — siap di-push.");
-    syncSession(pushedIds, newResolvedIds, accurateJournalNos);
+    setManualOverrides(newManualOverrides);
+    toast.success(
+      override.coaNo
+        ? "Ditandai sudah direview — siap di-push."
+        : "Ditandai sudah direview — nomor invoice tercatat, belum bisa di-push tanpa COA."
+    );
+    syncSession(pushedIds, newResolvedIds, accurateJournalNos, newManualOverrides);
   }
 
   function handleOpenReview(group: JournalGroup) {
@@ -725,15 +769,14 @@ function TransaksiPageInner() {
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setDbPickerOpen(false)} />
                     <div className="absolute z-50 mt-1.5 w-72 bg-white border border-zinc-200 rounded-lg shadow-lg divide-y divide-zinc-50">
-                      {ACCURATE_DATABASES.map((db) => {
+                      {databaseOptions.map((db) => {
                         const active = sessionConfig.database.id === db.id;
                         return (
                           <button
                             key={db.id}
-                            onClick={() => db.connected && handleChangeDatabase(db)}
-                            disabled={!db.connected}
+                            onClick={() => handleChangeDatabase(db)}
                             className={`w-full text-left flex items-center gap-2.5 px-3 py-2.5 text-xs transition-colors ${
-                              !db.connected ? "opacity-40 cursor-not-allowed" : active ? "bg-blue-50" : "hover:bg-zinc-50"
+                              active ? "bg-blue-50" : "hover:bg-zinc-50"
                             }`}
                           >
                             <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${active ? "border-blue-900 bg-blue-900" : "border-zinc-300"}`}>
@@ -743,7 +786,6 @@ function TransaksiPageInner() {
                               <p className="text-zinc-800 truncate">{db.name}</p>
                               <p className="text-[10px] font-mono text-zinc-400">{db.dbCode}</p>
                             </div>
-                            {!db.connected && <span className="text-[10px] text-zinc-400">Belum konek</span>}
                           </button>
                         );
                       })}

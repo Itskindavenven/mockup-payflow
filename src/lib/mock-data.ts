@@ -1,18 +1,3 @@
-export interface AccurateDatabase {
-  id: string;
-  name: string;
-  dbCode: string;
-  env: "production" | "training" | "archive";
-  connected?: boolean;
-}
-
-export const ACCURATE_DATABASES: AccurateDatabase[] = [
-  { id: "db-retail", name: "Retail Sample (Accurate Online)", dbCode: "RSP-2744191", env: "training", connected: true },
-  { id: "db-1", name: "PT Ega Accurate Indonesia", dbCode: "EGA-PROD", env: "production" },
-  { id: "db-2", name: "PT Ega Accurate Indonesia — Training", dbCode: "EGA-TRAIN", env: "training" },
-  { id: "db-3", name: "PT Ega Accurate Indonesia — Arsip 2025", dbCode: "EGA-2025", env: "archive" },
-];
-
 export interface RawTransaction {
   no: number;
   post_date: string;

@@ -41,8 +41,15 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AppShell } from "@/components/AppShell";
 import { useSession } from "@/components/session-provider";
-import { ACCURATE_DATABASES, DEFAULT_BANK_MAPPINGS, BankAccountMapping } from "@/lib/mock-data";
+import { DEFAULT_BANK_MAPPINGS, BankAccountMapping } from "@/lib/mock-data";
 import type { WizardDbConfig } from "@/lib/wizard-config-store";
+
+interface AccurateDb {
+  id: string;
+  name: string;
+  dbCode: string;
+  expired: boolean;
+}
 
 interface ApiCOA {
   no: string;
@@ -80,19 +87,21 @@ interface Slice<T> {
 
 const EMPTY: Slice<never> = { loading: false, loaded: false, error: null, data: [] };
 
-const ENV_LABEL: Record<string, string> = {
-  production: "Produksi",
-  training: "Training",
-  archive: "Arsip",
-};
-
 let nextBankId = DEFAULT_BANK_MAPPINGS.length + 1;
 
 export default function DatabaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const db = ACCURATE_DATABASES.find((d) => d.id === id);
   const session = useSession();
   const isAdmin = session?.role === "admin";
+
+  const [databases, setDatabases] = useState<AccurateDb[] | null>(null);
+  useEffect(() => {
+    fetch("/api/accurate/databases")
+      .then((r) => r.json())
+      .then((data: AccurateDb[] | { error: string }) => setDatabases(Array.isArray(data) ? data : []))
+      .catch(() => setDatabases([]));
+  }, []);
+  const db = databases?.find((d) => d.id === id);
 
   const [coa, setCoa] = useState<Slice<ApiCOA>>(EMPTY);
   const [vendor, setVendor] = useState<Slice<ApiVendor>>(EMPTY);
@@ -158,8 +167,9 @@ export default function DatabaseDetailPage({ params }: { params: Promise<{ id: s
   }
 
   function refetchVendors() {
+    if (!db) return;
     setVendor((s) => ({ ...s, loading: true }));
-    fetch("/api/accurate/vendors")
+    fetch(`/api/accurate/vendors?dbId=${db.id}`)
       .then((r) => r.json())
       .then((res) => {
         if (res?.error) throw new Error(res.error);
@@ -169,10 +179,10 @@ export default function DatabaseDetailPage({ params }: { params: Promise<{ id: s
   }
 
   useEffect(() => {
-    if (!db?.connected) return;
+    if (!db) return;
 
     setCoa((s) => ({ ...s, loading: true }));
-    fetch("/api/accurate/coa")
+    fetch(`/api/accurate/coa?dbId=${db.id}`)
       .then((r) => r.json())
       .then((res) => {
         if (res?.error) throw new Error(res.error);
@@ -183,14 +193,15 @@ export default function DatabaseDetailPage({ params }: { params: Promise<{ id: s
     refetchVendors();
 
     setKasBank((s) => ({ ...s, loading: true }));
-    fetch("/api/accurate/coa-bank")
+    fetch(`/api/accurate/coa-bank?dbId=${db.id}`)
       .then((r) => r.json())
       .then((res) => {
         if (res?.error) throw new Error(res.error);
         setKasBank({ loading: false, loaded: true, error: null, data: res });
       })
       .catch((e) => setKasBank({ loading: false, loaded: true, error: String(e), data: [] }));
-  }, [db?.connected]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db?.id]);
 
   const filteredCoa = useMemo(() => {
     if (!coaSearch.trim()) return coa.data;
@@ -276,7 +287,7 @@ export default function DatabaseDetailPage({ params }: { params: Promise<{ id: s
       const res = await fetch("/api/accurate/vendor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(vendorForm),
+        body: JSON.stringify({ ...vendorForm, dbId: db?.id }),
       });
       const json = await res.json();
       if (json?.error) {
@@ -307,26 +318,13 @@ export default function DatabaseDetailPage({ params }: { params: Promise<{ id: s
           <Link href="/settings" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
             <ArrowLeft size={14} /> Kembali ke Pengaturan
           </Link>
-          <p className="text-sm text-zinc-500">Database tidak ditemukan.</p>
-        </div>
-      </AppShell>
-    );
-  }
-
-  if (!db.connected) {
-    return (
-      <AppShell>
-        <div className="px-6 py-6 max-w-3xl mx-auto space-y-4">
-          <Link href="/settings" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
-            <ArrowLeft size={14} /> Kembali ke Pengaturan
-          </Link>
-          <div className="bg-amber-50 border border-amber-100 rounded-xl px-5 py-4 flex items-start gap-3">
-            <AlertTriangle size={15} className="text-amber-500 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-amber-700">
-              Database &ldquo;{db.name}&rdquo; belum terhubung. Detail Master COA, Vendor, dan Pemetaan
-              Rekening Bank hanya tersedia untuk database yang sedang terkoneksi.
-            </p>
-          </div>
+          {databases === null ? (
+            <div className="flex items-center justify-center py-10 text-zinc-400">
+              <Loader2 size={18} className="animate-spin" />
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">Database tidak ditemukan.</p>
+          )}
         </div>
       </AppShell>
     );
@@ -357,16 +355,8 @@ export default function DatabaseDetailPage({ params }: { params: Promise<{ id: s
               </div>
               <p className="text-sm text-zinc-500 mt-1 font-mono">{db.dbCode}</p>
             </div>
-            <Badge
-              className={`text-xs font-medium px-2.5 ${
-                db.env === "production"
-                  ? "bg-blue-50 text-blue-700 border-blue-100"
-                  : db.env === "training"
-                  ? "bg-amber-50 text-amber-700 border-amber-100"
-                  : "bg-zinc-100 text-zinc-400 border-zinc-200"
-              }`}
-            >
-              {ENV_LABEL[db.env]}
+            <Badge className="text-xs font-medium px-2.5 bg-amber-50 text-amber-700 border-amber-100">
+              Sample
             </Badge>
           </div>
         </motion.div>
