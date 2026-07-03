@@ -63,7 +63,25 @@ async function saveCreds(creds: AccurateCreds): Promise<void> {
 // refresh_token on every use, so the new pair is persisted immediately —
 // skipping this would strand the app with a refresh_token that only
 // works once.
-export async function refreshCreds(): Promise<AccurateCreds> {
+//
+// Single-flighted: the wizard fires several Accurate API calls in
+// parallel (Promise.all), so if the token is stale, multiple callers can
+// hit `refreshCreds()` at nearly the same instant. Without this, each
+// would race to spend the *same* refresh_token — Accurate only honors
+// the first, and every other concurrent call dies with `invalid_grant`
+// even though the refresh itself succeeded moments earlier.
+let inFlightRefresh: Promise<AccurateCreds> | null = null;
+
+export function refreshCreds(): Promise<AccurateCreds> {
+  if (!inFlightRefresh) {
+    inFlightRefresh = doRefresh().finally(() => {
+      inFlightRefresh = null;
+    });
+  }
+  return inFlightRefresh;
+}
+
+async function doRefresh(): Promise<AccurateCreds> {
   const current = await loadCreds();
 
   const basicAuth = Buffer.from(
