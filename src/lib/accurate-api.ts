@@ -1,5 +1,7 @@
 // Server-only — never import this in client components
 
+import { loadCreds, refreshCreds } from "./accurate-token-store";
+
 export interface AccurateCOA {
   no: string;
   name: string;
@@ -21,14 +23,47 @@ export interface OtherPaymentDetail {
   memo?: string;
 }
 
-function authHeaders() {
-  return {
-    Authorization: `Bearer ${process.env.ACCURATE_ACCESS_TOKEN}`,
-    "X-Session-ID": process.env.ACCURATE_SESSION!,
-  };
+// Accurate signals a stale token/session two different ways: an XML fault
+// body (e.g. `<InvalidTokenException>...`, not valid JSON — would
+// otherwise surface as a confusing "Unexpected token '<'" crash) or a
+// well-formed JSON error (`{s:false, d:["Data Session Key tidak tepat"]}`).
+function looksLikeAuthError(text: string): boolean {
+  if (text.startsWith("<")) {
+    return /InvalidToken|InvalidSession|invalid_token|ExpiredToken|Session/i.test(text);
+  }
+  try {
+    const json = JSON.parse(text);
+    return json?.s === false && /session|token/i.test(JSON.stringify(json.d ?? ""));
+  } catch {
+    return false;
+  }
 }
 
-const host = () => process.env.ACCURATE_DB_HOST!;
+// Central fetch wrapper: attaches the current token/session, and on an
+// auth-rotation error, refreshes once via the refresh_token grant and
+// retries transparently. Accurate invalidates the previous access_token
+// every time a new one is issued (e.g. a fresh OAuth login), so relying
+// on static env vars alone breaks in production the moment that happens.
+async function accurateFetch(pathAndQuery: string, init: RequestInit = {}): Promise<Response> {
+  let creds = await loadCreds();
+  const doFetch = () =>
+    fetch(`${creds.host}${pathAndQuery}`, {
+      ...init,
+      headers: {
+        ...init.headers,
+        Authorization: `Bearer ${creds.accessToken}`,
+        "X-Session-ID": creds.session,
+      },
+    });
+
+  let res = await doFetch();
+  const text = await res.clone().text();
+  if (looksLikeAuthError(text)) {
+    creds = await refreshCreds();
+    res = await doFetch();
+  }
+  return res;
+}
 
 export async function fetchCOABank(): Promise<AccurateCOA[]> {
   const params = new URLSearchParams({
@@ -37,10 +72,7 @@ export async function fetchCOABank(): Promise<AccurateCOA[]> {
     "filter.accountType.op": "EQUAL",
     "filter.accountType.val": "CASH_BANK",
   });
-  const res = await fetch(`${host()}/accurate/api/glaccount/list.do?${params}`, {
-    headers: authHeaders(),
-    cache: "no-store",
-  });
+  const res = await accurateFetch(`/accurate/api/glaccount/list.do?${params}`, { cache: "no-store" });
   const json = await res.json();
   if (!json.s) throw new Error("fetchCOABank failed: " + JSON.stringify(json));
   return json.d;
@@ -61,10 +93,7 @@ export async function fetchCOA(): Promise<AccurateCOA[]> {
       "sp.pageSize": String(pageSize),
       "sp.page": String(page),
     });
-    const res = await fetch(`${host()}/accurate/api/glaccount/list.do?${params}`, {
-      headers: authHeaders(),
-      cache: "no-store",
-    });
+    const res = await accurateFetch(`/accurate/api/glaccount/list.do?${params}`, { cache: "no-store" });
     const json = await res.json();
     if (!json.s) throw new Error("fetchCOA failed: " + JSON.stringify(json));
     const rows: AccurateCOA[] = json.d ?? [];
@@ -80,10 +109,7 @@ export async function fetchVendors(): Promise<AccurateVendor[]> {
     fields: "id,name,vendorNo,vendorBranchName",
     "sp.pageSize": "100",
   });
-  const res = await fetch(`${host()}/accurate/api/vendor/list.do?${params}`, {
-    headers: authHeaders(),
-    cache: "no-store",
-  });
+  const res = await accurateFetch(`/accurate/api/vendor/list.do?${params}`, { cache: "no-store" });
   const json = await res.json();
   if (!json.s) throw new Error("fetchVendors failed: " + JSON.stringify(json));
   const vendors: AccurateVendor[] = json.d;
@@ -94,10 +120,7 @@ export async function fetchVendors(): Promise<AccurateVendor[]> {
   await Promise.all(
     vendors.map(async (v) => {
       try {
-        const detailRes = await fetch(`${host()}/accurate/api/vendor/detail.do?id=${v.id}`, {
-          headers: authHeaders(),
-          cache: "no-store",
-        });
+        const detailRes = await accurateFetch(`/accurate/api/vendor/detail.do?id=${v.id}`, { cache: "no-store" });
         const detailJson = await detailRes.json();
         const bank = detailJson?.d?.detailBank?.[0];
         if (bank) {
@@ -130,19 +153,13 @@ export async function fetchOtherPaymentAdminFees(fromDate: string, toDate: strin
   });
   listParams.append("filter.transDate.val[0]", fromDate);
   listParams.append("filter.transDate.val[1]", toDate);
-  const listRes = await fetch(`${host()}/accurate/api/other-payment/list.do?${listParams}`, {
-    headers: authHeaders(),
-    cache: "no-store",
-  });
+  const listRes = await accurateFetch(`/accurate/api/other-payment/list.do?${listParams}`, { cache: "no-store" });
   const listJson = await listRes.json();
   if (!listJson.s) throw new Error("fetchOtherPaymentAdminFees failed: " + JSON.stringify(listJson));
 
   const entries: AdminFeeEntry[] = [];
   for (const row of listJson.d as { id: number; transDate: string }[]) {
-    const res = await fetch(`${host()}/accurate/api/other-payment/detail.do?id=${row.id}`, {
-      headers: authHeaders(),
-      cache: "no-store",
-    });
+    const res = await accurateFetch(`/accurate/api/other-payment/detail.do?id=${row.id}`, { cache: "no-store" });
     const json = await res.json();
     if (!json.s) continue;
     const detailAccount = json.d?.detailAccount ?? [];
@@ -177,19 +194,13 @@ export async function fetchPurchasePaymentsByVendor(fromDate: string, toDate: st
   });
   listParams.append("filter.transDate.val[0]", fromDate);
   listParams.append("filter.transDate.val[1]", toDate);
-  const listRes = await fetch(`${host()}/accurate/api/purchase-payment/list.do?${listParams}`, {
-    headers: authHeaders(),
-    cache: "no-store",
-  });
+  const listRes = await accurateFetch(`/accurate/api/purchase-payment/list.do?${listParams}`, { cache: "no-store" });
   const listJson = await listRes.json();
   if (!listJson.s) throw new Error("fetchPurchasePaymentsByVendor failed: " + JSON.stringify(listJson));
 
   const entries: VendorPaymentEntry[] = [];
   for (const row of listJson.d as { id: number; transDate: string; chequeAmount: number }[]) {
-    const res = await fetch(`${host()}/accurate/api/purchase-payment/detail.do?id=${row.id}`, {
-      headers: authHeaders(),
-      cache: "no-store",
-    });
+    const res = await accurateFetch(`/accurate/api/purchase-payment/detail.do?id=${row.id}`, { cache: "no-store" });
     const json = await res.json();
     if (!json.s) continue;
     entries.push({
@@ -221,9 +232,9 @@ export async function pushOtherPayment(payload: {
     body.set(`detailAccount[${i}].amount`, String(row.amount));
     if (row.memo) body.set(`detailAccount[${i}].memo`, row.memo);
   });
-  const res = await fetch(`${host()}/accurate/api/other-payment/save.do`, {
+  const res = await accurateFetch(`/accurate/api/other-payment/save.do`, {
     method: "POST",
-    headers: { ...authHeaders(), "Content-Type": "application/x-www-form-urlencoded" },
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   });
   return res.json();
@@ -267,9 +278,9 @@ export async function saveVendor(payload: {
   body.set("detailBank[0].sortBankName", bank.sortBankName);
   body.set("detailBank[0].bankId", bank.bankId);
   body.set("detailBank[0].vendorBankId", bank.vendorBankId);
-  const res = await fetch(`${host()}/accurate/api/vendor/save.do`, {
+  const res = await accurateFetch(`/accurate/api/vendor/save.do`, {
     method: "POST",
-    headers: { ...authHeaders(), "Content-Type": "application/x-www-form-urlencoded" },
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   });
   const text = await res.text();

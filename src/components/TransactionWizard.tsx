@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import {
   Check,
   ChevronRight,
@@ -520,6 +521,17 @@ export function TransactionWizard({ keywordMap, onComplete, reuseSession }: Tran
       configFetch,
     ])
       .then(([bankData, vendorData, config]: [ApiBankCOA[], ApiVendor[], WizardDbConfig]) => {
+        // API routes return `{ error }` (not an array) when the Accurate
+        // connection itself fails (e.g. expired token) — surface that
+        // instead of crashing on .map() over a non-array.
+        if (!Array.isArray(bankData) || !Array.isArray(vendorData)) {
+          throw new Error(
+            "Gagal memuat data Kas Bank/Vendor dari Accurate: " +
+              ((bankData as unknown as { error?: string })?.error ??
+                (vendorData as unknown as { error?: string })?.error ??
+                "respons tidak valid")
+          );
+        }
         setBanks(bankData);
         setVendors(vendorData);
 
@@ -533,7 +545,10 @@ export function TransactionWizard({ keywordMap, onComplete, reuseSession }: Tran
           setSelectedVendors(new Set(config.vendorNos));
         }
       })
-      .catch((e) => console.error("Failed to load Accurate master data:", e))
+      .catch((e) => {
+        console.error("Failed to load Accurate master data:", e);
+        toast.error(e instanceof Error ? e.message : "Gagal memuat data Kas Bank/Vendor dari Accurate.");
+      })
       .finally(() => setIsLoadingMaster(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canConfigure]);
