@@ -1,6 +1,14 @@
+import { NextRequest } from "next/server";
 import { redirect } from "next/navigation";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // `from`: internal app path to send the user back to once Accurate
+  // reconnect finishes — round-tripped through OAuth's `state` param
+  // (see /api/auth/callback). Only accept internal paths; anything else
+  // is dropped so this can't be abused as an open redirect.
+  const from = req.nextUrl.searchParams.get("from");
+  const state = from && from.startsWith("/") && !from.startsWith("//") ? from : "";
+
   const params = new URLSearchParams({
     response_type: "code",
     client_id: process.env.ACCURATE_CLIENT_ID!,
@@ -17,6 +25,7 @@ export async function GET() {
       "bank_statement_view",
       "bank_statement_save",
     ].join(" "),
+    ...(state ? { state } : {}),
   });
 
   redirect(`https://account.accurate.id/oauth/authorize?${params}`);

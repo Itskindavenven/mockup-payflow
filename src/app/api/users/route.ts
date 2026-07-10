@@ -8,7 +8,7 @@ export async function GET() {
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const users = userStore.getAll().map(({ password: _p, ...u }) => u);
+  const users = (await userStore.getAll()).map(({ passwordHash: _p, ...u }) => u);
   return NextResponse.json({ users });
 }
 
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
 
   const id = `emp-${Date.now()}`;
-  const result = userStore.create({
+  const result = await userStore.create({
     id,
     name: body.name.trim(),
     email: body.email.trim(),

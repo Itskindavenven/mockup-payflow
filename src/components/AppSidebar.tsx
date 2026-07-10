@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   UserCog,
   FileBarChart2,
+  Banknote,
 } from "lucide-react";
 import { toast } from "sonner";
 import { clearConnection } from "@/lib/connection";
@@ -45,9 +46,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: null,
     items: [
-      { href: "/dashboard",  label: "Beranda",      icon: LayoutDashboard },
-      { href: "/transaksi",  label: "Transaksi AP", icon: ArrowLeftRight,  permission: "transaksi" },
-      { href: "/report",     label: "Report",       icon: FileBarChart2 },
+      { href: "/dashboard",   label: "Beranda",           icon: LayoutDashboard },
+      { href: "/pembayaran",  label: "Pembayaran Vendor", icon: Banknote,       permission: "pembayaran" },
+      { href: "/transaksi",   label: "Transaksi AP",      icon: ArrowLeftRight, permission: "transaksi" },
+      { href: "/report",      label: "Report",            icon: FileBarChart2 },
     ],
   },
   {

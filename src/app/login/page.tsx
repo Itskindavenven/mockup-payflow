@@ -43,7 +43,25 @@ function LoginForm() {
       // and /api/* (e.g. a stale Accurate OAuth callback URL left in the
       // address bar), which aren't pages a logged-in user should land on.
       const isSafeTarget = from.startsWith("/") && !from.startsWith("/login") && !from.startsWith("/api/");
-      window.location.href = isSafeTarget ? from : "/transaksi";
+      const target = isSafeTarget ? from : "/transaksi";
+
+      if (data.accurateStatus === "error") {
+        // The proactive refresh attempted during login (see
+        // /api/app-auth/login) already failed — refresh_token itself is
+        // dead, not just the access_token, so no automatic retry can fix
+        // this. Send the user straight into Accurate's OAuth login instead
+        // of dropping them into the app with a broken Accurate connection;
+        // `from` round-trips through the OAuth `state` param so they land
+        // back on `target` once reconnected (see /api/auth/callback).
+        toast.warning("Sesi Accurate perlu disambungkan ulang — mengarahkan ke login Accurate…", {
+          description: data.accurateError,
+          duration: 5000,
+        });
+        window.location.href = `/api/auth/login?from=${encodeURIComponent(target)}`;
+        return;
+      }
+
+      window.location.href = target;
     } catch {
       toast.error("Koneksi ke server gagal.");
     } finally {

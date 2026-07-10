@@ -1,0 +1,1010 @@
+[
+  {
+    "name": "BPD RIAU",
+    "rtgsCode": "PDRIIDJA",
+    "clearingCode": "1190016",
+    "onlineBankCode": "119"
+  },
+  {
+    "name": "BPD RIAU UNIT USAHA SYARIAH",
+    "rtgsCode": "SYRIIDJ1",
+    "clearingCode": "SYRIIDJ1",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB CIREBON",
+    "rtgsCode": "INDOIDJA140",
+    "clearingCode": "0011400",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB DENPASAR",
+    "rtgsCode": "INDOIDJA720",
+    "clearingCode": "0017200",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB JAMBI",
+    "rtgsCode": "INDOIDJA310",
+    "clearingCode": "0013107",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB JAYAPURA",
+    "rtgsCode": "INDOIDJA820",
+    "clearingCode": "0018209",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB JEMBER",
+    "rtgsCode": "INDOIDJA040",
+    "clearingCode": "0010401",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB KEDIRI",
+    "rtgsCode": "INDOIDJA060",
+    "clearingCode": "0010605",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB KENDARI",
+    "rtgsCode": "INDOIDJA690",
+    "clearingCode": "0016900",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB KUPANG",
+    "rtgsCode": "INDOIDJA740",
+    "clearingCode": "0017404",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB LHOKSEUMAWE",
+    "rtgsCode": "INDOIDJA410",
+    "clearingCode": "0014106",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB MAKASSAR",
+    "rtgsCode": "INDOIDJA610",
+    "clearingCode": "0016104",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB MALANG",
+    "rtgsCode": "INDOIDJA070",
+    "clearingCode": "0010702",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB MANADO",
+    "rtgsCode": "INDOIDJA620",
+    "clearingCode": "0016201",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB MATARAM",
+    "rtgsCode": "INDOIDJA710",
+    "clearingCode": "0017103",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB MEDAN",
+    "rtgsCode": "INDOIDJA330",
+    "clearingCode": "0013301",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB PADANG",
+    "rtgsCode": "INDOIDJA340",
+    "clearingCode": "0013408",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB PALANGKARAYA",
+    "rtgsCode": "INDOIDJA580",
+    "clearingCode": "0015804",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB PALEMBANG",
+    "rtgsCode": "INDOIDJA360",
+    "clearingCode": "0013602",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB PALU",
+    "rtgsCode": "INDOIDJA600",
+    "clearingCode": "0016007",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB PEKANBARU",
+    "rtgsCode": "INDOIDJA350",
+    "clearingCode": "0013505",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB PONTIANAK",
+    "rtgsCode": "INDOIDJA530",
+    "clearingCode": "0015309",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB PURWOKERTA",
+    "rtgsCode": "INDOIDJA150",
+    "clearingCode": "0011507",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB SAMARINDA",
+    "rtgsCode": "INDOIDJA540",
+    "clearingCode": "0015406",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB SEMARANG",
+    "rtgsCode": "INDOIDJA090",
+    "clearingCode": "0010906",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB SIBOLGA",
+    "rtgsCode": "INDOIDJA380",
+    "clearingCode": "0013806",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB SURAKARTA",
+    "rtgsCode": "INDOIDJA100",
+    "clearingCode": "0011002",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB TASIKMALAYA",
+    "rtgsCode": "INDOIDJA190",
+    "clearingCode": "0011905",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB TERNATE",
+    "rtgsCode": "INDOIDJA880",
+    "clearingCode": "0018801",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB YOGYAKARTA",
+    "rtgsCode": "INDOIDJA050",
+    "clearingCode": "0010508",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "PT. BANK MAYBANK INDONESIA Tbk.",
+    "rtgsCode": "IBBKIDJA",
+    "clearingCode": "0160131",
+    "onlineBankCode": "016"
+  },
+  {
+    "name": "BANK JASA JAKARTA",
+    "rtgsCode": "JSABIDJ1",
+    "clearingCode": "4720014",
+    "onlineBankCode": "472"
+  },
+  {
+    "name": "PT. BANK QNB INDONESIA Tbk",
+    "rtgsCode": "AWANIDJA",
+    "clearingCode": "1670015",
+    "onlineBankCode": "167"
+  },
+  {
+    "name": "PT BANK SEABANK INDONESIA",
+    "rtgsCode": "SSPIIDJA",
+    "clearingCode": "5350014",
+    "onlineBankCode": "535"
+  },
+  {
+    "name": "BANK MANDIRI (PERSERO)",
+    "rtgsCode": "BMRIIDJA",
+    "clearingCode": "0080017",
+    "onlineBankCode": "008"
+  },
+  {
+    "name": "BANK MASPION INDONESIA",
+    "rtgsCode": "MASDIDJ1",
+    "clearingCode": "1570018",
+    "onlineBankCode": "157"
+  },
+  {
+    "name": "BANK MAYAPADA INTERNASIONAL",
+    "rtgsCode": "MAYAIDJA",
+    "clearingCode": "0970017",
+    "onlineBankCode": "097"
+  },
+  {
+    "name": "PT. BANK ALADIN SYARIAH, TBK",
+    "rtgsCode": "NETBIDJA",
+    "clearingCode": "9470301",
+    "onlineBankCode": "947"
+  },
+  {
+    "name": "PT. BANK HIBANK INDONESIA",
+    "rtgsCode": "MAYOIDJA",
+    "clearingCode": "5530012",
+    "onlineBankCode": "553"
+  },
+  {
+    "name": "BANK NATIONAL NOBU",
+    "rtgsCode": "LFIBIDJ1",
+    "clearingCode": "5030017",
+    "onlineBankCode": "503"
+  },
+  {
+    "name": "PT. BANK AMAR INDONESIA",
+    "rtgsCode": "LOMAIDJ1",
+    "clearingCode": "5310012",
+    "onlineBankCode": "531"
+  },
+  {
+    "name": "BANK ANZ - PANIN",
+    "rtgsCode": "ANZBIDJX",
+    "clearingCode": "0610306",
+    "onlineBankCode": "061"
+  },
+  {
+    "name": "BANK IBK Indonesia Tbk",
+    "rtgsCode": "IBKOIDJA",
+    "clearingCode": "9450305",
+    "onlineBankCode": "945"
+  },
+  {
+    "name": "PT. BANK RAYA INDONESIA TBK",
+    "rtgsCode": "AGTBIDJA",
+    "clearingCode": "4940014",
+    "onlineBankCode": "494"
+  },
+  {
+    "name": "BANK ARTHA GRAHA",
+    "rtgsCode": "ARTGIDJA",
+    "clearingCode": "0370028",
+    "onlineBankCode": "037"
+  },
+  {
+    "name": "BANK HANA",
+    "rtgsCode": "HNBNIDJA",
+    "clearingCode": "4840017",
+    "onlineBankCode": "484"
+  },
+  {
+    "name": "PT Krom Bank Indonesia Tbk",
+    "rtgsCode": "BUSTIDJ1",
+    "clearingCode": "4590011",
+    "onlineBankCode": "459"
+  },
+  {
+    "name": "BANK BNP PARIBAS INDONESIA",
+    "rtgsCode": "BNPAIDJA",
+    "clearingCode": "0570307",
+    "onlineBankCode": "057"
+  },
+  {
+    "name": "PT BANK KB BUKOPIN, Tbk",
+    "rtgsCode": "BBUKIDJA",
+    "clearingCode": "4410010",
+    "onlineBankCode": "441"
+  },
+  {
+    "name": "BANK BUMI ARTA",
+    "rtgsCode": "BBAIIDJA",
+    "clearingCode": "0760010",
+    "onlineBankCode": "076"
+  },
+  {
+    "name": "Bank Name",
+    "rtgsCode": "BIC / RTGS Code",
+    "clearingCode": "Domestic Bank",
+    "onlineBankCode": "Online Bank Code"
+  },
+  {
+    "name": "BANK MNC INTERNATIONAL",
+    "rtgsCode": "BUMIIDJA",
+    "clearingCode": "4850010",
+    "onlineBankCode": "485"
+  },
+  {
+    "name": "BANK CAPITAL INDONESIA",
+    "rtgsCode": "BCIAIDJA",
+    "clearingCode": "0540308",
+    "onlineBankCode": "054"
+  },
+  {
+    "name": "BANK CENTRAL ASIA",
+    "rtgsCode": "CENAIDJA",
+    "clearingCode": "0140397",
+    "onlineBankCode": "014"
+  },
+  {
+    "name": "Bank J TRUST Indonesia",
+    "rtgsCode": "CICTIDJA",
+    "clearingCode": "0950011",
+    "onlineBankCode": "095"
+  },
+  {
+    "name": "BANK CHINATRUST INDONESIA",
+    "rtgsCode": "CTCBIDJA",
+    "clearingCode": "9490307",
+    "onlineBankCode": "949"
+  },
+  {
+    "name": "BANK CIMB NIAGA",
+    "rtgsCode": "BNIAIDJA",
+    "clearingCode": "0220026",
+    "onlineBankCode": "022"
+  },
+  {
+    "name": "BANK JAGO",
+    "rtgsCode": "JAGBIDJA",
+    "clearingCode": "5420012",
+    "onlineBankCode": "542"
+  },
+  {
+    "name": "Dummy Bank",
+    "rtgsCode": "XXXXXXY",
+    "clearingCode": "XXXXXXY",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK COMMONWEALTH",
+    "rtgsCode": "BICNIDJA",
+    "clearingCode": "9500307",
+    "onlineBankCode": "950"
+  },
+  {
+    "name": "BANK DANAMON INDONESIA",
+    "rtgsCode": "BDINIDJA",
+    "clearingCode": "0110042",
+    "onlineBankCode": "011"
+  },
+  {
+    "name": "BANK DBS INDONESIA",
+    "rtgsCode": "DBSBIDJA",
+    "clearingCode": "0460307",
+    "onlineBankCode": "046"
+  },
+  {
+    "name": "BANK SAHABAT SAMPOERNA",
+    "rtgsCode": "BDIPIDJ1",
+    "clearingCode": "5230011",
+    "onlineBankCode": "523"
+  },
+  {
+    "name": "BANK DKI",
+    "rtgsCode": "BDKIIDJ1",
+    "clearingCode": "1110012",
+    "onlineBankCode": "111"
+  },
+  {
+    "name": "PT. HSBC INDONESIA",
+    "rtgsCode": "HSBCIDJA",
+    "clearingCode": "0870010",
+    "onlineBankCode": "087"
+  },
+  {
+    "name": "PT. BANK PEMBANGUNAN DAERAH BANTEN",
+    "rtgsCode": "PDBBIDJ1",
+    "clearingCode": "1370014",
+    "onlineBankCode": "137"
+  },
+  {
+    "name": "BANK EKSPOR INDONESIA",
+    "rtgsCode": "LPEIIDJ1",
+    "clearingCode": "0030012",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK FAMA INTERNATIONAL",
+    "rtgsCode": "FAMAIDJ1",
+    "clearingCode": "5620029",
+    "onlineBankCode": "562"
+  },
+  {
+    "name": "BANK GANESHA",
+    "rtgsCode": "GNESIDJA",
+    "clearingCode": "1610017",
+    "onlineBankCode": "161"
+  },
+  {
+    "name": "ALLO BANK INDONESIA",
+    "rtgsCode": "HRDAIDJ1",
+    "clearingCode": "5670011",
+    "onlineBankCode": "567"
+  },
+  {
+    "name": "PT. BANK PANIN DUBAI SYARIAH",
+    "rtgsCode": "ARFAIDJ1",
+    "clearingCode": "5170016",
+    "onlineBankCode": "517"
+  },
+  {
+    "name": "BANK WOORI SAUDARA INDONESIA",
+    "rtgsCode": "BSDRIDJA",
+    "clearingCode": "2120027",
+    "onlineBankCode": "212"
+  },
+  {
+    "name": "BANK ICBC INDONESIA",
+    "rtgsCode": "ICBKIDJA",
+    "clearingCode": "1640058",
+    "onlineBankCode": "164"
+  },
+  {
+    "name": "BANK INA PERDANA",
+    "rtgsCode": "IAPTIDJA",
+    "clearingCode": "5130014",
+    "onlineBankCode": "513"
+  },
+  {
+    "name": "BANK INDEX SELINDO",
+    "rtgsCode": "BIDXIDJA",
+    "clearingCode": "5550018",
+    "onlineBankCode": "555"
+  },
+  {
+    "name": "BANK INDONESIA CB ACEH",
+    "rtgsCode": "INDOIDJA320",
+    "clearingCode": "0013204",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB AMBON",
+    "rtgsCode": "INDOIDJA810",
+    "clearingCode": "0018102",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB BALIKPAPAN",
+    "rtgsCode": "INDOIDJA570",
+    "clearingCode": "0015707",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB BANDAR LAMPUNG",
+    "rtgsCode": "INDOIDJA390",
+    "clearingCode": "0013903",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB BANDUNG",
+    "rtgsCode": "INDOIDJA010",
+    "clearingCode": "0010100",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB BANJARMASIN",
+    "rtgsCode": "INDOIDJA510",
+    "clearingCode": "0015105",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB BATAM",
+    "rtgsCode": "INDOIDJA370",
+    "clearingCode": "0013709",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA CB BENGKULU",
+    "rtgsCode": "INDOIDJA230",
+    "clearingCode": "0012302",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "JP MORGAN CHASE BANK",
+    "rtgsCode": "CHASIDJX",
+    "clearingCode": "0320308",
+    "onlineBankCode": "032"
+  },
+  {
+    "name": "KUSTODIAN SENTRAL EFEK INDONESIA",
+    "rtgsCode": "KSEIIDJ1",
+    "clearingCode": "KSEIIDJ1",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "PT. Bank OKE Indonesia Tbk",
+    "rtgsCode": "LMANIDJ1",
+    "clearingCode": "5260010",
+    "onlineBankCode": "526"
+  },
+  {
+    "name": "BANK MESTIKA DHARMA",
+    "rtgsCode": "MEDHIDS1",
+    "clearingCode": "1510049",
+    "onlineBankCode": "151"
+  },
+  {
+    "name": "BANK PANIN",
+    "rtgsCode": "PINBIDJA",
+    "clearingCode": "0190017",
+    "onlineBankCode": "019"
+  },
+  {
+    "name": "Lembaga Penjamin Simpanan",
+    "rtgsCode": "BLPSIDJ1",
+    "clearingCode": "BLPSIDJ1",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "PT. BANK OCBC NISP, TBK.",
+    "rtgsCode": "NISPIDJA",
+    "clearingCode": "0280024",
+    "onlineBankCode": "028"
+  },
+  {
+    "name": "PT. FINNET INDONESIA",
+    "rtgsCode": "FINTIDJ1",
+    "clearingCode": "FINTIDJ1",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "PT.ARTAJASA PEMBAYARAN ELEKTRONIK",
+    "rtgsCode": "ATJSIDJ2",
+    "clearingCode": "ATJSIDJ2",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "RABOBANK INTERNATIONAL INDONESIA",
+    "rtgsCode": "RABOIDJA",
+    "clearingCode": "0890016",
+    "onlineBankCode": "089"
+  },
+  {
+    "name": "STANDARD CHARTERED  BANK",
+    "rtgsCode": "SCBLIDJX",
+    "clearingCode": "0500306",
+    "onlineBankCode": "050"
+  },
+  {
+    "name": "BANK BANGKOK, LTD",
+    "rtgsCode": "BKKBIDJA",
+    "clearingCode": "0400309",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "PT. BANK BCA SYARIAH",
+    "rtgsCode": "SYCAIDJ1",
+    "clearingCode": "5360017",
+    "onlineBankCode": "536"
+  },
+  {
+    "name": "PT. BANK OF INDIA INDONESIA, TBK",
+    "rtgsCode": "BKIDIDJA",
+    "clearingCode": "1460047",
+    "onlineBankCode": "146"
+  },
+  {
+    "name": "BANK INDONESIA CB PEMATANGSIANTAR",
+    "rtgsCode": "INDOIDJA470",
+    "clearingCode": "0014708",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "NA",
+    "rtgsCode": "YYYYYYYY",
+    "clearingCode": "YYYYYYY",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "PT. BANK PEMBANGUNAN DAERAH  JABAR DAN BANTEN",
+    "rtgsCode": "PDJBIDJA",
+    "clearingCode": "1100019",
+    "onlineBankCode": "110"
+  },
+  {
+    "name": "BANK JABAR BANTEN UUS",
+    "rtgsCode": "SYJBIDJ1",
+    "clearingCode": "4250018",
+    "onlineBankCode": "425"
+  },
+  {
+    "name": "BANK INDONESIA BIFAST",
+    "rtgsCode": "FASTIDJA",
+    "clearingCode": "FASTIDJA",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK INDONESIA KP JAKARTA",
+    "rtgsCode": "INDOIDJA930",
+    "clearingCode": "INDOIDJA930",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK MEGA",
+    "rtgsCode": "MEGAIDJA",
+    "clearingCode": "4260121",
+    "onlineBankCode": "426"
+  },
+  {
+    "name": "BANK SHINHAN INDONESIA (METRO EXPRESS)",
+    "rtgsCode": "MEEKIDJ1",
+    "clearingCode": "1520013",
+    "onlineBankCode": "152"
+  },
+  {
+    "name": "PT. BANK ACEH SYARIAH",
+    "rtgsCode": "SYACIDJ1",
+    "clearingCode": "1169924",
+    "onlineBankCode": "116"
+  },
+  {
+    "name": "BANK MIZUHO INDONESIA",
+    "rtgsCode": "MHCCIDJA",
+    "clearingCode": "0480303",
+    "onlineBankCode": "048"
+  },
+  {
+    "name": "BANK MUAMALAT INDONESIA",
+    "rtgsCode": "MUABIDJA",
+    "clearingCode": "1470011",
+    "onlineBankCode": "147"
+  },
+  {
+    "name": "BANK MULTI ARTA SENTOSA",
+    "rtgsCode": "BMSEIDJA",
+    "clearingCode": "5480010",
+    "onlineBankCode": "548"
+  },
+  {
+    "name": "BANK OF AMERICA NA",
+    "rtgsCode": "BOFAID2X",
+    "clearingCode": "0330301",
+    "onlineBankCode": "033"
+  },
+  {
+    "name": "BANK OF CHINA (HONG KONG) LIMITED",
+    "rtgsCode": "BKCHIDJA",
+    "clearingCode": "0690300",
+    "onlineBankCode": "069"
+  },
+  {
+    "name": "MUFG Bank Ltd",
+    "rtgsCode": "BOTKIDJX",
+    "clearingCode": "0420305",
+    "onlineBankCode": "042"
+  },
+  {
+    "name": "BANK RAKYAT INDONESIA (PERSERO)",
+    "rtgsCode": "BRINIDJA",
+    "clearingCode": "0020307",
+    "onlineBankCode": "002"
+  },
+  {
+    "name": "Bank Name",
+    "rtgsCode": "BIC / RTGS Code",
+    "clearingCode": "Domestic Bank",
+    "onlineBankCode": "Online Bank Code"
+  },
+  {
+    "name": "BANK RESONA PERDANIA",
+    "rtgsCode": "BPIAIDJA",
+    "clearingCode": "0470300",
+    "onlineBankCode": "047"
+  },
+  {
+    "name": "PT BANK DIGITAL BCA",
+    "rtgsCode": "BBLUIDJA",
+    "clearingCode": "5010011",
+    "onlineBankCode": "501"
+  },
+  {
+    "name": "BANK INDONESIA CB TEGAL",
+    "rtgsCode": "INDOIDJA030",
+    "clearingCode": "0010304",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK SBI INDONESIA",
+    "rtgsCode": "IDMOIDJ1",
+    "clearingCode": "4980016",
+    "onlineBankCode": "498"
+  },
+  {
+    "name": "PT. BANK MANDIRI TASPEN",
+    "rtgsCode": "SIHBIDJ1",
+    "clearingCode": "5640012",
+    "onlineBankCode": "564"
+  },
+  {
+    "name": "BANK PERMATA",
+    "rtgsCode": "BBBAIDJA",
+    "clearingCode": "0130307",
+    "onlineBankCode": "013"
+  },
+  {
+    "name": "BANK SINARMAS",
+    "rtgsCode": "SBJKIDJA",
+    "clearingCode": "1530016",
+    "onlineBankCode": "153"
+  },
+  {
+    "name": "PRIMA MASTER BANK",
+    "rtgsCode": "PMASIDJ1",
+    "clearingCode": "5200012",
+    "onlineBankCode": "520"
+  },
+  {
+    "name": "BANK BTN UUS",
+    "rtgsCode": "SYBTIDJ1",
+    "clearingCode": "2009928",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK SYARIAH BUKOPIN",
+    "rtgsCode": "SDOBIDJ1",
+    "clearingCode": "5210031",
+    "onlineBankCode": "521"
+  },
+  {
+    "name": "BANK SYARIAH INDONESIA",
+    "rtgsCode": "BSMDIDJA",
+    "clearingCode": "4510017",
+    "onlineBankCode": "451"
+  },
+  {
+    "name": "BANK SYARIAH MEGA INDONESIA",
+    "rtgsCode": "BUTGIDJ1",
+    "clearingCode": "5060016",
+    "onlineBankCode": "506"
+  },
+  {
+    "name": "BANK SUMATERA SELATAN UUS",
+    "rtgsCode": "SYSSIDJ1",
+    "clearingCode": "1209923",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK TABUNGAN NEGARA / BTN SYARIAH",
+    "rtgsCode": "BTANIDJA",
+    "clearingCode": "2000024",
+    "onlineBankCode": "200"
+  },
+  {
+    "name": "BANK TABUNGAN NEGARA - SYARIAH",
+    "rtgsCode": "SYBTIDJ1",
+    "clearingCode": "SYBTIDJ1",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK TABUNGAN PENSIUNAN NASIONAL",
+    "rtgsCode": "SUNIIDJA",
+    "clearingCode": "2130101",
+    "onlineBankCode": "213"
+  },
+  {
+    "name": "BANK UOB INDONESIA",
+    "rtgsCode": "BBIJIDJA",
+    "clearingCode": "0230016",
+    "onlineBankCode": "023"
+  },
+  {
+    "name": "BANK VICTORIA INTERNATIONAL",
+    "rtgsCode": "VICTIDJ1",
+    "clearingCode": "5660018",
+    "onlineBankCode": "566"
+  },
+  {
+    "name": "BANK CHINA CONSTRUCTION BANK INDONESIA",
+    "rtgsCode": "MCORIDJA",
+    "clearingCode": "0360300",
+    "onlineBankCode": "036"
+  },
+  {
+    "name": "PT Bank Neo Commerce Tbk",
+    "rtgsCode": "YUDBIDJ1",
+    "clearingCode": "4900012",
+    "onlineBankCode": "490"
+  },
+  {
+    "name": "PT. BANK TABUNGAN PENSIUNAN UUS",
+    "rtgsCode": "PUBAIDJ1",
+    "clearingCode": "5470017",
+    "onlineBankCode": "547"
+  },
+  {
+    "name": "PT. BANK PEMBANGUNAN DAERAH BALI",
+    "rtgsCode": "ABALIDBS",
+    "clearingCode": "1290013",
+    "onlineBankCode": "129"
+  },
+  {
+    "name": "BPD BENGKULU",
+    "rtgsCode": "PDBKIDJ1",
+    "clearingCode": "1330012",
+    "onlineBankCode": "133"
+  },
+  {
+    "name": "BPD YOGYAKARTA",
+    "rtgsCode": "PDYKIDJ1",
+    "clearingCode": "1120015",
+    "onlineBankCode": "112"
+  },
+  {
+    "name": "BPD JAMBI",
+    "rtgsCode": "PDJMIDJ1",
+    "clearingCode": "1150014",
+    "onlineBankCode": "115"
+  },
+  {
+    "name": "BPD JAWA TENGAH",
+    "rtgsCode": "PDJGIDJ1",
+    "clearingCode": "1130348",
+    "onlineBankCode": "113"
+  },
+  {
+    "name": "BPD JAWA TIMUR",
+    "rtgsCode": "PDJTIDJ1",
+    "clearingCode": "1140383",
+    "onlineBankCode": "114"
+  },
+  {
+    "name": "BPD KALIMANTAN BARAT",
+    "rtgsCode": "PDKBIDJ1",
+    "clearingCode": "1230015",
+    "onlineBankCode": "123"
+  },
+  {
+    "name": "BPD KALIMANTAN SELATAN",
+    "rtgsCode": "PDKSIDJ1",
+    "clearingCode": "1220012",
+    "onlineBankCode": "122"
+  },
+  {
+    "name": "BPD KALIMANTAN TENGAH",
+    "rtgsCode": "PDKGIDJ1",
+    "clearingCode": "1250011",
+    "onlineBankCode": "125"
+  },
+  {
+    "name": "BPD KALIMANTAN TIMUR DAN KALIMANTAN UTARA",
+    "rtgsCode": "PDKTIDJ1",
+    "clearingCode": "1240018",
+    "onlineBankCode": "124"
+  },
+  {
+    "name": "BPD LAMPUNG",
+    "rtgsCode": "PDLPIDJ1",
+    "clearingCode": "1210051",
+    "onlineBankCode": "121"
+  },
+  {
+    "name": "BPD MALUKU",
+    "rtgsCode": "PDMLIDJ1",
+    "clearingCode": "1310016",
+    "onlineBankCode": "131"
+  },
+  {
+    "name": "BPD NUSA TENGGARA BARAT",
+    "rtgsCode": "PDNBIDJ1",
+    "clearingCode": "1280010",
+    "onlineBankCode": "128"
+  },
+  {
+    "name": "BPD NUSA TENGGARA TIMUR",
+    "rtgsCode": "PDNTIDJA",
+    "clearingCode": "1300013",
+    "onlineBankCode": "130"
+  },
+  {
+    "name": "BPD PAPUA",
+    "rtgsCode": "PDIJIDJ1",
+    "clearingCode": "1320019",
+    "onlineBankCode": "132"
+  },
+  {
+    "name": "BANK VICTORIA SYARIAH",
+    "rtgsCode": "SWAGIDJ1",
+    "clearingCode": "4050072",
+    "onlineBankCode": "405"
+  },
+  {
+    "name": "BANK SULSELBAR",
+    "rtgsCode": "PDWSIDJA",
+    "clearingCode": "1260027",
+    "onlineBankCode": "126"
+  },
+  {
+    "name": "PT. BPD JAMBI UUS",
+    "rtgsCode": "SYJMIDJ1",
+    "clearingCode": "SYJMIDJ1",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BPD SULAWESI TENGAH",
+    "rtgsCode": "PDWGIDJ1",
+    "clearingCode": "1340015",
+    "onlineBankCode": "134"
+  },
+  {
+    "name": "BPD SULAWESI TENGGARA",
+    "rtgsCode": "PDWRIDJ1",
+    "clearingCode": "1350018",
+    "onlineBankCode": "135"
+  },
+  {
+    "name": "BPD SULAWESI UTARA",
+    "rtgsCode": "PDWUIDJ1",
+    "clearingCode": "1270091",
+    "onlineBankCode": "127"
+  },
+  {
+    "name": "PT BANK NAGARI",
+    "rtgsCode": "PDSBIDJ1",
+    "clearingCode": "1180013",
+    "onlineBankCode": "118"
+  },
+  {
+    "name": "BPD SUMATERA SELATAN",
+    "rtgsCode": "BSSPIDSP",
+    "clearingCode": "1200016",
+    "onlineBankCode": "120"
+  },
+  {
+    "name": "BANK SUMATERA UTARA",
+    "rtgsCode": "PDSUIDJ1",
+    "clearingCode": "1170201",
+    "onlineBankCode": "117"
+  },
+  {
+    "name": "CITIBANK NA",
+    "rtgsCode": "CITIIDJX",
+    "clearingCode": "0310305",
+    "onlineBankCode": "031"
+  },
+  {
+    "name": "DEUTSCHE BANK, AG",
+    "rtgsCode": "DEUTIDJA",
+    "clearingCode": "0670304",
+    "onlineBankCode": "067"
+  },
+  {
+    "name": "PT. Bank Nano Syariah",
+    "rtgsCode": "NANOIDJ1",
+    "clearingCode": "2530015",
+    "onlineBankCode": "253"
+  },
+  {
+    "name": "BANK INDONESIA",
+    "rtgsCode": "INDOIDJA",
+    "clearingCode": "0010016",
+    "onlineBankCode": "001"
+  },
+  {
+    "name": "PT KPEI-CCP-PUVA",
+    "rtgsCode": "KPEIIDJ2",
+    "clearingCode": "KPEIIDJ2",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "PT. RINTIS SEJAHTERA (PT. RINTIS)",
+    "rtgsCode": "RISJIDJ1",
+    "clearingCode": "RISJIDJ1",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "PT. ALTO NETWORK (PT. ALTO)",
+    "rtgsCode": "ALTOIDJ1",
+    "clearingCode": "ALTOIDJ1",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "PT JALIN PEMBAYARAN NUSANTARA",
+    "rtgsCode": "JPNAIDJ1",
+    "clearingCode": "JPNAIDJ1",
+    "onlineBankCode": ""
+  },
+  {
+    "name": "BANK JAGO SYARIAH",
+    "rtgsCode": "SYATIDJ1",
+    "clearingCode": "5429903",
+    "onlineBankCode": ""
+  }
+]

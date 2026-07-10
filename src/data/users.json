@@ -4,10 +4,11 @@
       "id": "admin",
       "name": "Admin Ega",
       "email": "admin@ega.co.id",
-      "password": "admin123",
+      "passwordHash": "$2b$10$/KxcOyft6rYIlsZcCZM.xe6tY.ZTXWfUYV2mzY.e0PMzqe.aMcXH2",
       "role": "admin",
       "permissions": [
         "transaksi",
+        "pembayaran",
         "keyword-mapping",
         "master-data",
         "audit-log"
@@ -17,7 +18,7 @@
       "id": "emp-budi",
       "name": "Budi Santoso",
       "email": "budi@ega.co.id",
-      "password": "budi123",
+      "passwordHash": "$2b$10$6.DBtX3dNrsoU/eMA73ovOMWJ01mG/oQDc.U7mur7p/9aa9gnXTiq",
       "role": "employee",
       "permissions": [
         "transaksi"
@@ -27,7 +28,7 @@
       "id": "emp-sari",
       "name": "Sari Dewi",
       "email": "sari@ega.co.id",
-      "password": "sari123",
+      "passwordHash": "$2b$10$.ow2Khq7sFme8R.iELYJv.w11ptso9iO7sjEV8ObTmIuLgaX8RWyq",
       "role": "employee",
       "permissions": [
         "transaksi",

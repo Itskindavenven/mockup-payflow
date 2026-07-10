@@ -10,7 +10,7 @@ export async function GET(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { dbId } = await params;
-  return NextResponse.json(wizardConfigStore.get(dbId));
+  return NextResponse.json(await wizardConfigStore.get(dbId));
 }
 
 export async function PUT(
@@ -27,6 +27,6 @@ export async function PUT(
     return NextResponse.json({ error: "vendorNos must be an array" }, { status: 400 });
   }
 
-  wizardConfigStore.save(dbId, { bankAccountNo: body.bankAccountNo ?? null, vendorNos: body.vendorNos });
+  await wizardConfigStore.save(dbId, { bankAccountNo: body.bankAccountNo ?? null, vendorNos: body.vendorNos });
   return NextResponse.json({ ok: true });
 }

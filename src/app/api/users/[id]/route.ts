@@ -13,7 +13,7 @@ export async function PUT(
   }
 
   const { id } = await params;
-  const user = userStore.findById(id);
+  const user = await userStore.findById(id);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
   if (user.role === "admin") {
     return NextResponse.json({ error: "Cannot modify admin permissions" }, { status: 400 });
@@ -24,7 +24,7 @@ export async function PUT(
     return NextResponse.json({ error: "permissions must be an array" }, { status: 400 });
   }
 
-  userStore.update(id, { permissions: body.permissions });
+  await userStore.update(id, { permissions: body.permissions });
   return NextResponse.json({ ok: true });
 }
 
@@ -38,12 +38,12 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const user = userStore.findById(id);
+  const user = await userStore.findById(id);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
   if (user.role === "admin") {
     return NextResponse.json({ error: "Cannot delete admin" }, { status: 400 });
   }
 
-  userStore.delete(id);
+  await userStore.delete(id);
   return NextResponse.json({ ok: true });
 }

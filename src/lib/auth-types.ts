@@ -1,7 +1,8 @@
-export type Permission = "transaksi" | "keyword-mapping" | "master-data" | "audit-log";
+export type Permission = "transaksi" | "pembayaran" | "keyword-mapping" | "master-data" | "audit-log";
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
   "transaksi": "Transaksi AP",
+  "pembayaran": "Pembayaran Vendor",
   "keyword-mapping": "Keyword Mapping",
   "master-data": "Master Data (COA & Vendor)",
   "audit-log": "Audit Log",
@@ -9,6 +10,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
 
 export const ALL_PERMISSIONS: Permission[] = [
   "transaksi",
+  "pembayaran",
   "keyword-mapping",
   "master-data",
   "audit-log",

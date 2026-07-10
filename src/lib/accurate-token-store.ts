@@ -74,6 +74,15 @@ async function saveAccountToken(token: AccountToken): Promise<void> {
   if (redis) await redis.set(ACCOUNT_KEY, token);
 }
 
+// Used by the initial OAuth callback (authorization_code exchange), as
+// opposed to doRefreshAccountToken (refresh_token exchange). Cached
+// per-database sessions minted under the old access_token don't need to
+// be proactively cleared here — accurateFetch already re-mints a session
+// reactively the moment Accurate reports it invalid (looksLikeInvalidSession).
+export async function setAccountToken(token: AccountToken): Promise<void> {
+  await saveAccountToken(token);
+}
+
 async function loadDbSession(dbId: string): Promise<DbSession | null> {
   if (redis) {
     const stored = await redis.get<DbSession>(dbKey(dbId));

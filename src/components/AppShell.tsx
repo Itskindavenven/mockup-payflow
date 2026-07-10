@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import { AppSidebar } from "./AppSidebar";
 import { getConnection, saveConnection, AccurateConnection } from "@/lib/connection";
 import { Loader2, Building2, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Beranda",
+  "/pembayaran": "Pembayaran Vendor",
   "/transaksi": "Transaksi AP",
   "/coa": "Master COA",
   "/vendor": "Master Vendor",
@@ -42,6 +44,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       saveConnection(c);
     }
     setConn(c);
+  }, []);
+
+  useEffect(() => {
+    // Set by /api/auth/callback after a successful Accurate OAuth
+    // reconnect — lands here regardless of which page the user was
+    // originally headed to (see `state` round-trip in
+    // /api/auth/login + /api/auth/callback).
+    if (new URLSearchParams(window.location.search).get("accurate_reconnected") === "1") {
+      toast.success("Koneksi ke Accurate Online berhasil diperbarui — token baru sudah aktif.");
+      window.history.replaceState(null, "", window.location.pathname);
+    }
   }, []);
 
   if (conn === "loading" || conn === null) {

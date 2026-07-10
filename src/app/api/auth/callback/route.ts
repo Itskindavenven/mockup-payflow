@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { setAccountToken } from "@/lib/accurate-token-store";
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
@@ -31,20 +32,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Token exchange failed", detail: err }, { status: 500 });
   }
 
-  const token = await tokenRes.json();
+  const token = await tokenRes.json() as { access_token: string; refresh_token: string };
 
-  // Immediately test: get db list
-  const dbRes = await fetch("https://account.accurate.id/api/db-list.do", {
-    headers: { Authorization: `Bearer ${token.access_token}` },
-  });
-  const dbList = await dbRes.json();
+  // This used to just dump the raw token JSON to the browser and require
+  // manually pasting it somewhere to actually take effect — the store
+  // (Redis/memory, same one refreshAccountToken reads/writes) was never
+  // updated, so every reconnect required a human in the loop past this
+  // point. Persist it here instead so a fresh OAuth login is immediately
+  // live for every subsequent Accurate API call.
+  await setAccountToken({ accessToken: token.access_token, refreshToken: token.refresh_token });
 
-  // Return everything for inspection (dev only)
-  return NextResponse.json({
-    access_token: token.access_token,
-    token_type: token.token_type,
-    expires_in: token.expires_in,
-    refresh_token: token.refresh_token,
-    databases: dbList,
-  });
+  // `state` carries the internal path the user was headed to before being
+  // bounced out to Accurate's OAuth login (see /api/auth/login) — same
+  // internal-path validation as there, since it's still attacker-controlled
+  // input at this point.
+  const state = req.nextUrl.searchParams.get("state");
+  const target = state && state.startsWith("/") && !state.startsWith("//") ? state : "/settings";
+
+  const url = req.nextUrl.clone();
+  url.pathname = target;
+  url.search = "";
+  url.searchParams.set("accurate_reconnected", "1");
+  return NextResponse.redirect(url);
 }

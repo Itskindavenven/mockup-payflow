@@ -6,7 +6,7 @@ export async function GET() {
   const session = await getServerSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  return NextResponse.json(apSessionStore.list());
+  return NextResponse.json(await apSessionStore.list());
 }
 
 export async function POST(req: NextRequest) {
@@ -41,6 +41,6 @@ export async function POST(req: NextRequest) {
     status: body.status ?? "draft",
   };
 
-  apSessionStore.create(record);
+  await apSessionStore.create(record);
   return NextResponse.json(record);
 }
