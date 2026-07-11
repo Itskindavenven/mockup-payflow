@@ -44,5 +44,12 @@ export async function GET(req: NextRequest) {
     ...(state ? { state } : {}),
   });
 
-  redirect(`https://account.accurate.id/oauth/login.do?${params}`);
+  // NOTE: oauth/login.do is a plain login form and does NOT honor
+  // redirect_uri/response_type — after logging in there it just drops the
+  // user on their Accurate account home page instead of back into this
+  // app (confirmed by testing). oauth/authorize is the actual OAuth2
+  // authorization endpoint: it shows Accurate's login/consent screen and
+  // then redirects to redirect_uri with the code, which is what
+  // /api/auth/callback needs.
+  redirect(`https://account.accurate.id/oauth/authorize?${params}`);
 }
