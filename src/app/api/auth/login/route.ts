@@ -44,5 +44,5 @@ export async function GET(req: NextRequest) {
     ...(state ? { state } : {}),
   });
 
-  redirect(`https://account.accurate.id/oauth/authorize?${params}`);
+  redirect(`https://account.accurate.id/oauth/login.do?${params}`);
 }
