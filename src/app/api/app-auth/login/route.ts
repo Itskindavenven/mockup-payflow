@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     accurateStatus = "error";
     accurateError = e instanceof Error ? e.message : String(e);
+    console.error(`fetchAccurateDatabases failed on login for user ${user.id}:`, accurateError);
   }
 
   const res = NextResponse.json({

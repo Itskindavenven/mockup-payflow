@@ -49,6 +49,14 @@ function makeRedis(): Redis | null {
 
 const redis = makeRedis();
 
+// Boolean-only diagnostic (never expose the URL/token themselves) — lets
+// us tell "Redis isn't configured in this environment, so per-instance
+// memory is the only store and will drift across Vercel instances" apart
+// from "Redis is configured but something else is wrong".
+export function isRedisConfigured(): boolean {
+  return redis !== null;
+}
+
 // In-memory fallback so refreshes within the same warm process are still
 // picked up even without Redis configured (e.g. local `next dev`).
 const memoryAccounts = new Map<string, AccountToken>();

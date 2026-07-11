@@ -10,7 +10,16 @@ import { clearAccountToken } from "@/lib/accurate-token-store";
 // "logout" secara eksplisit.
 export async function POST() {
   const session = await getServerSession();
-  if (session) await clearAccountToken(session.id);
+  if (session) {
+    try {
+      await clearAccountToken(session.id);
+    } catch (e) {
+      // Must not block logout itself on a Redis hiccup — but MUST be loud
+      // about it, since a swallowed failure here is exactly what makes
+      // "logout doesn't actually disconnect Accurate" hard to catch.
+      console.error(`clearAccountToken failed during logout for user ${session.id}:`, e);
+    }
+  }
 
   const res = NextResponse.json({ ok: true });
   res.cookies.delete(SESSION_COOKIE);
