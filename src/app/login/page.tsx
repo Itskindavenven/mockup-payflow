@@ -45,14 +45,10 @@ function LoginForm() {
       const isSafeTarget = from.startsWith("/") && !from.startsWith("/login") && !from.startsWith("/api/");
       const target = isSafeTarget ? from : "/transaksi";
 
-      // TEMPORARY diagnostic — always visible on-screen, no DevTools
-      // needed, so we can see exactly what the login response said even
-      // when nothing else (redirect/warning) fires. Remove once the
-      // logout-persistence issue is confirmed fixed.
-      toast.message(`[debug] accurateStatus: ${data.accurateStatus}`, {
-        description: data.accurateError,
-        duration: 8000,
-      });
+      // TEMPORARY diagnostic — logs what /api/app-auth/login actually
+      // returned. Open DevTools > Console (F12) after logging in to see
+      // it. Remove once the logout-persistence issue is confirmed fixed.
+      console.log("[debug] /api/app-auth/login response:", data);
 
       if (data.accurateStatus === "error") {
         // The proactive refresh attempted during login (see
