@@ -174,6 +174,7 @@ export function TransactionDetailSheet({
             <div className="space-y-2">
               {[
                 { label: "No. Invoice",   value: group.detected_invoice_no, mono: true, accent: "text-indigo-600" },
+                { label: "Vendor",        value: group.detected_vendor,     mono: false, accent: "text-emerald-600" },
                 { label: "Keyword",       value: group.detected_keyword,    mono: true },
                 { label: "Suggested COA", value: group.suggested_coa },
                 { label: "Modul",         value: group.sync_action ? ENDPOINT_MAP[group.sync_action] : null, mono: false, accent: "text-blue-600" },

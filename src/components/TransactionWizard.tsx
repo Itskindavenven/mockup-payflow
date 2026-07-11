@@ -23,6 +23,7 @@ import {
   COAEntry,
   RAW_TRANSACTIONS,
   ALREADY_RECORDED_IN_ACCURATE,
+  RawTransaction,
 } from "@/lib/mock-data";
 import {
   enrichRow,
@@ -499,6 +500,8 @@ export function TransactionWizard({ keywordMap, onComplete, reuseSession }: Tran
   const [uploadState, setUploadState] = useState<"idle" | "processing" | "done">(reuseSession ? "done" : "idle");
   const [dragOver, setDragOver] = useState(false);
   const [fileName, setFileName] = useState<string | null>(reuseSession?.fileName ?? null);
+  // null = pakai data demo (RAW_TRANSACTIONS); array = hasil parse file upload beneran.
+  const [uploadedTransactions, setUploadedTransactions] = useState<RawTransaction[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [banks, setBanks] = useState<ApiBankCOA[]>([]);
@@ -582,8 +585,39 @@ export function TransactionWizard({ keywordMap, onComplete, reuseSession }: Tran
     );
   }
 
-  function simulateUpload(name: string) {
-    setFileName(name);
+  async function handleFileUpload(file: File) {
+    setFileName(file.name);
+    setUploadState("processing");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/statement/parse", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Gagal memproses file.", {
+          description: Array.isArray(data.details) ? data.details.slice(0, 5).join("\n") : undefined,
+          duration: 10000,
+        });
+        setUploadState("idle");
+        return;
+      }
+      if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+        toast.warning(`${data.warnings.length} baris dilewati saat parsing.`, {
+          description: data.warnings.slice(0, 5).join("\n"),
+          duration: 8000,
+        });
+      }
+      setUploadedTransactions(data.transactions);
+      setUploadState("done");
+    } catch {
+      toast.error("Gagal upload file.");
+      setUploadState("idle");
+    }
+  }
+
+  function handleUseDemo() {
+    setFileName("Rekening_Koran_BNI_April2026.xlsx");
+    setUploadedTransactions(null);
     setUploadState("processing");
     setTimeout(() => setUploadState("done"), 1600);
   }
@@ -624,8 +658,10 @@ export function TransactionWizard({ keywordMap, onComplete, reuseSession }: Tran
       onComplete(config, reuseSession.groups, reuseSession.fileName);
       return;
     }
-    const enriched = RAW_TRANSACTIONS.map((raw) =>
-      enrichRow(raw, ALREADY_RECORDED_IN_ACCURATE, keywordMap)
+    const sourceRows = uploadedTransactions ?? RAW_TRANSACTIONS;
+    const vendorLookups = vendors.map((v) => ({ name: v.name, accountNo: v.accountNo }));
+    const enriched = sourceRows.map((raw) =>
+      enrichRow(raw, ALREADY_RECORDED_IN_ACCURATE, keywordMap, vendorLookups)
     );
     const groups = groupByJournalNo(enriched);
     onComplete(config, groups, fileName ?? "e-statement.xlsx");
@@ -710,16 +746,16 @@ export function TransactionWizard({ keywordMap, onComplete, reuseSession }: Tran
                 e.preventDefault();
                 setDragOver(false);
                 const file = e.dataTransfer.files?.[0];
-                if (file) simulateUpload(file.name);
+                if (file) handleFileUpload(file);
               }}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onFileInput={(e) => {
                 const file = e.target.files?.[0];
-                if (file) simulateUpload(file.name);
+                if (file) handleFileUpload(file);
               }}
-              onUseDemo={() => simulateUpload("Rekening_Koran_BNI_April2026.xlsx")}
-              transactionCount={reuseSession ? reuseSession.groups.reduce((s, g) => s + g.rows.length, 0) : RAW_TRANSACTIONS.length}
+              onUseDemo={handleUseDemo}
+              transactionCount={reuseSession ? reuseSession.groups.reduce((s, g) => s + g.rows.length, 0) : (uploadedTransactions ?? RAW_TRANSACTIONS).length}
               isReused={!!reuseSession}
             />
           )}

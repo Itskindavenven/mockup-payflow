@@ -41,6 +41,7 @@ const PUSH_MODES = [
 
 export default function SettingsPage() {
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [databases, setDatabases] = useState<AccurateDb[]>([]);
   const [isLoadingDbs, setIsLoadingDbs] = useState(true);
   const [activeDb, setActiveDb] = useState("");
@@ -64,11 +65,29 @@ export default function SettingsPage() {
   const connectedDb = databases.find((db) => db.id === activeDb) ?? databases[0];
 
   function handleReconnect() {
-    setIsReconnecting(true);
-    setTimeout(() => {
-      setIsReconnecting(false);
-      toast.success("Koneksi ke Accurate Online berhasil diperbarui.");
-    }, 2000);
+    // Full OAuth authorization_code dance ke Accurate — nggak bisa
+    // di-refresh diam-diam dari sini kalau refresh_token-nya sendiri udah
+    // invalid, jadi arahkan ke alur reconnect yang sama kayak login gagal
+    // (lihat /api/auth/login + /api/auth/callback).
+    window.location.href = `/api/auth/login?from=${encodeURIComponent("/settings")}`;
+  }
+
+  async function handleDisconnect() {
+    if (!window.confirm("Putuskan koneksi Accurate Online? Semua user perlu login/reconnect ulang setelah ini.")) return;
+    setIsDisconnecting(true);
+    try {
+      const res = await fetch("/api/auth/disconnect", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Gagal memutuskan koneksi.");
+        return;
+      }
+      toast.success("Koneksi Accurate diputus. Token sudah dihapus.");
+    } catch {
+      toast.error("Gagal memutuskan koneksi.");
+    } finally {
+      setIsDisconnecting(false);
+    }
   }
 
   return (
@@ -312,10 +331,12 @@ export default function SettingsPage() {
             </div>
             <Button
               variant="outline"
-              className="h-9 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 flex-shrink-0"
-              onClick={() => toast.error("Simulasi: koneksi diputus. Redirect ke halaman login.")}
+              disabled={isDisconnecting}
+              className="h-9 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 flex-shrink-0 gap-1.5"
+              onClick={handleDisconnect}
               aria-label="Putuskan koneksi dari Accurate Online"
             >
+              {isDisconnecting && <Loader2 size={13} className="animate-spin" />}
               Putuskan Koneksi
             </Button>
           </div>

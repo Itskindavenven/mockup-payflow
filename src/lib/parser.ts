@@ -51,6 +51,7 @@ export interface JournalGroup {
   sync_action: SyncAction;
   display_label: string;
   detected_invoice_no: string | null;
+  detected_vendor: string | null;
   detected_keyword: string | null;
   suggested_coa: string | null;
   suggested_coa_no: string | null;
@@ -67,10 +68,34 @@ export function isAdminFee(desc: string): boolean {
 
 const INVOICE_REGEX = /Inv\/(\d{4}\/\d{2}\/\d{2}\/\S+)/i;
 
+// Nomor rekening tujuan/sumber di deskripsi transfer BNI — sama pola yang
+// dipakai extractRefNo() untuk mask 4-digit terakhir, di sini dipakai utuh
+// buat dicocokkan ke rekening bank vendor yang sudah di-set di Accurate
+// Online (vendor.accountNo, ditarik dari vendor/detail.do — lihat
+// accurate-api.ts fetchVendors()).
+const ACCOUNT_NO_REGEX = /PEMINDAHAN (?:KE|DARI)\s+(\d{6,})/i;
+
+export function extractBankAccountNo(desc: string): string | null {
+  const match = desc.match(ACCOUNT_NO_REGEX);
+  return match ? match[1] : null;
+}
+
+export interface VendorLookup {
+  name: string;
+  accountNo?: string;
+}
+
+function findVendorByAccountNo(desc: string, vendors: VendorLookup[]): VendorLookup | null {
+  const acctNo = extractBankAccountNo(desc);
+  if (!acctNo) return null;
+  return vendors.find((v) => v.accountNo && v.accountNo.trim() === acctNo) ?? null;
+}
+
 export function parseTransaction(
   description_raw: string,
   alreadyRecorded: string[],
-  keywordMap: KeywordEntry[]
+  keywordMap: KeywordEntry[],
+  vendors: VendorLookup[] = []
 ): ParsedTransaction {
   const invoiceMatch = description_raw.match(INVOICE_REGEX);
   const detected_invoice_no = invoiceMatch
@@ -84,6 +109,12 @@ export function parseTransaction(
   const detected_keyword = matchedKeyword?.keyword ?? null;
   const suggested_coa_from_keyword = matchedKeyword?.coa ?? null;
   const suggested_coa_no_from_keyword = matchedKeyword?.coaNo ?? null;
+
+  // Cocokkan rekening tujuan ke rekening bank vendor yang sudah terdaftar
+  // di Accurate Online — sinyal identitas vendor yang lebih kuat daripada
+  // nebak dari nama pihak di deskripsi (yang sering disingkat/typo).
+  const matchedVendor = detected_invoice_no ? null : findVendorByAccountNo(description_raw, vendors);
+  const detected_vendor = matchedVendor?.name ?? null;
 
   let accurate_status: AccurateStatus;
   let sync_action: SyncAction;
@@ -100,6 +131,10 @@ export function parseTransaction(
     suggested_coa = suggested_coa_from_keyword;
     suggested_coa_no = suggested_coa_no_from_keyword;
   } else {
+    // Vendor kedetect lewat rekening bank tapi belum ada nomor invoice/PO
+    // maupun COA yang bisa dipastikan otomatis — tetap "perlu_review" biar
+    // COA-nya dipilih manual (nggak nebak COA yang salah), tapi nama
+    // vendor-nya udah kepasang biar reviewer nggak mulai dari nol.
     accurate_status = "perlu_review";
     sync_action = null;
   }
@@ -109,6 +144,8 @@ export function parseTransaction(
     display_label = `Invoice ${detected_invoice_no.split("/").pop()}`;
   } else if (detected_keyword && suggested_coa_from_keyword) {
     display_label = suggested_coa_from_keyword.replace("Beban ", "");
+  } else if (detected_vendor) {
+    display_label = detected_vendor;
   } else {
     const t = description_raw.trim();
     display_label = t.length > 40 ? t.slice(0, 40) + "…" : t;
@@ -116,7 +153,7 @@ export function parseTransaction(
 
   return {
     detected_invoice_no,
-    detected_vendor: null,
+    detected_vendor,
     detected_keyword,
     suggested_coa,
     suggested_coa_no,
@@ -131,10 +168,11 @@ export function parseTransaction(
 export function enrichRow(
   raw: RawTransaction,
   alreadyRecorded: string[],
-  keywordMap: KeywordEntry[]
+  keywordMap: KeywordEntry[],
+  vendors: VendorLookup[] = []
 ): EnrichedTransaction {
   const adminFee = isAdminFee(raw.description_raw);
-  const parsed = parseTransaction(raw.description_raw, alreadyRecorded, keywordMap);
+  const parsed = parseTransaction(raw.description_raw, alreadyRecorded, keywordMap, vendors);
 
   if (adminFee) {
     return {
@@ -197,6 +235,7 @@ export function groupByJournalNo(rows: EnrichedTransaction[]): JournalGroup[] {
       sync_action: primary.sync_action,
       display_label: primary.display_label,
       detected_invoice_no: primary.detected_invoice_no,
+      detected_vendor: primary.detected_vendor,
       detected_keyword: primary.detected_keyword,
       suggested_coa: primary.suggested_coa,
       suggested_coa_no: primary.suggested_coa_no,

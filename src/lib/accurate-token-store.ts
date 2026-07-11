@@ -83,6 +83,20 @@ export async function setAccountToken(token: AccountToken): Promise<void> {
   await saveAccountToken(token);
 }
 
+// "Putuskan Koneksi" (Settings page) — wipes the stored token/sessions so
+// the app falls back to the (expired) env-var placeholder, forcing a fresh
+// OAuth login before any Accurate call works again. This is account-level
+// (shared across every user/database), so it affects everyone, not just
+// whoever clicked it.
+export async function clearAccountToken(): Promise<void> {
+  memoryAccount = null;
+  const dbIds = Array.from(memoryDbSessions.keys());
+  memoryDbSessions.clear();
+  if (redis) {
+    await redis.del(ACCOUNT_KEY, ...dbIds.map(dbKey));
+  }
+}
+
 async function loadDbSession(dbId: string): Promise<DbSession | null> {
   if (redis) {
     const stored = await redis.get<DbSession>(dbKey(dbId));
@@ -96,21 +110,65 @@ async function saveDbSession(dbId: string, session: DbSession): Promise<void> {
   if (redis) await redis.set(dbKey(dbId), session);
 }
 
-// Single-flighted: several Accurate API calls can fire in parallel
-// (e.g. the wizard's Promise.all), so if the token is stale, multiple
-// callers can hit refresh at nearly the same instant. Without this,
-// each would race to spend the *same* refresh_token — Accurate only
-// honors the first, and every other concurrent call dies with
-// `invalid_grant` even though the refresh itself had just succeeded.
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Distributed mutex on top of Redis SET NX — the `inFlightAccountRefresh`
+// promise cache below only dedupes concurrent calls *within one process*,
+// which is all `next dev` ever is, but on Vercel each concurrent request
+// can land on a completely separate serverless instance with its own
+// memory. Three parallel page requests (e.g. Settings loading COA/vendor/
+// kas-bank at once) can each spin up their own instance, all miss the
+// cached session/token, and all hit Accurate at once — since refresh_token
+// is single-use, only the first succeeds and the rest die with
+// `invalid_grant`, and open-db.do sometimes rejects concurrent opens for
+// the same account with "Data Usaha tidak tepat". Losing this race in
+// prod (confirmed via 3 parallel curl requests against Vercel — 2 of 3
+// failed) is what the in-memory-only guard could never catch locally.
+async function acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
+  if (!redis) return true; // no cross-instance concern without Redis — in-memory guard is enough
+  const result = await redis.set(key, "1", { nx: true, ex: ttlSeconds });
+  return result === "OK";
+}
+
+async function releaseLock(key: string): Promise<void> {
+  if (redis) await redis.del(key);
+}
+
+// Single-flighted in-process, and lock-guarded cross-process (see above).
 let inFlightAccountRefresh: Promise<AccountToken> | null = null;
 
 export function refreshAccountToken(): Promise<AccountToken> {
   if (!inFlightAccountRefresh) {
-    inFlightAccountRefresh = doRefreshAccountToken().finally(() => {
+    inFlightAccountRefresh = refreshAccountTokenLocked().finally(() => {
       inFlightAccountRefresh = null;
     });
   }
   return inFlightAccountRefresh;
+}
+
+const ACCOUNT_REFRESH_LOCK_KEY = "accurate:account:refresh-lock";
+
+async function refreshAccountTokenLocked(): Promise<AccountToken> {
+  if (await acquireLock(ACCOUNT_REFRESH_LOCK_KEY, 15)) {
+    try {
+      return await doRefreshAccountToken();
+    } finally {
+      await releaseLock(ACCOUNT_REFRESH_LOCK_KEY);
+    }
+  }
+  // Another instance is refreshing right now — poll for what it saves
+  // instead of racing it with our own (single-use) refresh_token.
+  for (let i = 0; i < 20; i++) {
+    await sleep(300);
+    if (redis) {
+      const stored = await redis.get<AccountToken>(ACCOUNT_KEY);
+      if (stored) return stored;
+    }
+  }
+  // Gave up waiting (~6s) — try ourselves rather than hang forever.
+  return doRefreshAccountToken();
 }
 
 async function doRefreshAccountToken(): Promise<AccountToken> {
@@ -140,17 +198,38 @@ async function doRefreshAccountToken(): Promise<AccountToken> {
 }
 
 // Mints (or re-mints) a session for a specific database. Single-flighted
-// per dbId for the same reason as the account refresh above.
+// per dbId in-process, and lock-guarded cross-process (see the comment
+// above acquireLock) — same open-db.do concurrency problem as the account
+// refresh, just keyed per database instead of per account.
 const inFlightDbSession = new Map<string, Promise<DbSession>>();
 
 export function mintDbSession(dbId: string, accessToken: string): Promise<DbSession> {
   const existing = inFlightDbSession.get(dbId);
   if (existing) return existing;
-  const promise = doMintDbSession(dbId, accessToken).finally(() => {
+  const promise = mintDbSessionLocked(dbId, accessToken).finally(() => {
     inFlightDbSession.delete(dbId);
   });
   inFlightDbSession.set(dbId, promise);
   return promise;
+}
+
+async function mintDbSessionLocked(dbId: string, accessToken: string): Promise<DbSession> {
+  const lockKey = `accurate:db:${dbId}:mint-lock`;
+  if (await acquireLock(lockKey, 15)) {
+    try {
+      return await doMintDbSession(dbId, accessToken);
+    } finally {
+      await releaseLock(lockKey);
+    }
+  }
+  // Another instance is minting this database's session right now — poll
+  // for it instead of also calling open-db.do concurrently.
+  for (let i = 0; i < 20; i++) {
+    await sleep(300);
+    const stored = await loadDbSession(dbId);
+    if (stored) return stored;
+  }
+  return doMintDbSession(dbId, accessToken);
 }
 
 async function doMintDbSession(dbId: string, accessToken: string): Promise<DbSession> {
