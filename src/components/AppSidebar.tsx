@@ -5,8 +5,6 @@ import Link from "next/link";
 import {
   LayoutDashboard,
   ArrowLeftRight,
-  BookOpen,
-  Users,
   Tag,
   ClipboardList,
   Settings2,
@@ -50,13 +48,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/pembayaran",  label: "Pembayaran Vendor", icon: Banknote,       permission: "pembayaran" },
       { href: "/transaksi",   label: "Transaksi AP",      icon: ArrowLeftRight, permission: "transaksi" },
       { href: "/report",      label: "Report",            icon: FileBarChart2 },
-    ],
-  },
-  {
-    label: "Master Data",
-    items: [
-      { href: "/coa",    label: "Master COA",    icon: BookOpen, permission: "master-data" },
-      { href: "/vendor", label: "Master Vendor", icon: Users,    permission: "master-data" },
     ],
   },
   {

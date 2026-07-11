@@ -16,8 +16,6 @@ const PUBLIC_PREFIXES = ["/api/app-auth/", "/api/auth/", "/_next/", "/favicon"];
 const ROUTE_PERMISSIONS: Record<string, string> = {
   "/transaksi": "transaksi",
   "/keyword-mapping": "keyword-mapping",
-  "/coa": "master-data",
-  "/vendor": "master-data",
   "/audit-log": "audit-log",
 };
 

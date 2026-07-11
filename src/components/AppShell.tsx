@@ -11,8 +11,6 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Beranda",
   "/pembayaran": "Pembayaran Vendor",
   "/transaksi": "Transaksi AP",
-  "/coa": "Master COA",
-  "/vendor": "Master Vendor",
   "/keyword-mapping": "Keyword Mapping",
   "/audit-log": "Audit Log",
   "/settings": "Pengaturan",
