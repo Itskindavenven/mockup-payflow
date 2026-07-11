@@ -297,29 +297,46 @@ export const BANK_MASTER = {
 
 export type BankKey = keyof typeof BANK_MASTER;
 
-// Tambah vendor baru (nama vendor + 1 rekening bank vendor). Field nested
-// detailBank[0].* diverifikasi langsung ke API real Accurate lewat network
-// trace form "Tambah Vendor" mereka sendiri — bukan tebakan:
+// Cocokkan nama bank apa adanya (dari file import, laporan Accurate, dll)
+// ke BankKey yang udah kekonfirmasi vendorBankId/bankId-nya. Cuma exact
+// match ke bankName resmi BANK_MASTER — bank yang belum ada di daftar
+// (mis. Bank Syariah Indonesia, Bank Mayapada) sengaja TIDAK ditebak,
+// karena vendorBankId salah bikin Accurate nolak simpan detailBank.
+export function findBankKeyByName(bankNameRaw: string): BankKey | null {
+  const target = bankNameRaw.trim().toUpperCase();
+  const entry = (Object.entries(BANK_MASTER) as [BankKey, typeof BANK_MASTER[BankKey]][])
+    .find(([, b]) => b.bankName.toUpperCase() === target);
+  return entry ? entry[0] : null;
+}
+
+// Tambah vendor baru (nama vendor, opsional 1 rekening bank vendor). Field
+// nested detailBank[0].* diverifikasi langsung ke API real Accurate lewat
+// network trace form "Tambah Vendor" mereka sendiri — bukan tebakan:
 //   bankAccount (no rekening), bankAccountName (nama pemilik rekening),
 //   bankName/sortBankName/bankId/vendorBankId (identitas bank, harus match
 //   pasangan valid dari master bank Accurate, lihat BANK_MASTER di atas).
+// `bank` dibiarkan undefined untuk vendor tanpa rekening bank (mis. bank-nya
+// nggak ada di BANK_MASTER — lihat findBankKeyByName) — vendor tetap
+// dibuat, rekening ditambah manual belakangan.
 export async function saveVendor(dbId: string, payload: {
   name: string;
-  bank: BankKey;
-  accountName: string;
-  accountNo: string;
+  bank?: BankKey;
+  accountName?: string;
+  accountNo?: string;
 }): Promise<{ s: boolean; d: unknown }> {
-  const bank = BANK_MASTER[payload.bank];
   const body = new URLSearchParams();
   body.set("name", payload.name);
-  body.set("detailBank[0]._status", "insert");
-  body.set("detailBank[0].seq", "1");
-  body.set("detailBank[0].bankAccount", payload.accountNo);
-  body.set("detailBank[0].bankAccountName", payload.accountName);
-  body.set("detailBank[0].bankName", bank.bankName);
-  body.set("detailBank[0].sortBankName", bank.sortBankName);
-  body.set("detailBank[0].bankId", bank.bankId);
-  body.set("detailBank[0].vendorBankId", bank.vendorBankId);
+  if (payload.bank && payload.accountNo) {
+    const bank = BANK_MASTER[payload.bank];
+    body.set("detailBank[0]._status", "insert");
+    body.set("detailBank[0].seq", "1");
+    body.set("detailBank[0].bankAccount", payload.accountNo);
+    body.set("detailBank[0].bankAccountName", payload.accountName ?? payload.name);
+    body.set("detailBank[0].bankName", bank.bankName);
+    body.set("detailBank[0].sortBankName", bank.sortBankName);
+    body.set("detailBank[0].bankId", bank.bankId);
+    body.set("detailBank[0].vendorBankId", bank.vendorBankId);
+  }
   const res = await accurateFetch(dbId, `/accurate/api/vendor/save.do`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, use } from "react";
+import { useState, useEffect, useMemo, useRef, use } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -19,6 +19,8 @@ import {
   CreditCard,
   ListChecks,
   Check,
+  Upload,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -272,6 +274,54 @@ export default function DatabaseDetailPage({ params }: { params: Promise<{ id: s
     setIsAddingVendor(true);
   }
 
+  interface BulkVendorResultRow {
+    name: string;
+    status: "created" | "created_no_bank" | "failed";
+    detail?: string;
+  }
+  interface BulkVendorResponse {
+    summary: { total: number; created: number; createdNoBank: number; failed: number };
+    results: BulkVendorResultRow[];
+    parseWarnings: string[];
+  }
+
+  const [isBulkOpen, setIsBulkOpen] = useState(false);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const [bulkResult, setBulkResult] = useState<BulkVendorResponse | null>(null);
+  const bulkFileInputRef = useRef<HTMLInputElement>(null);
+
+  function openBulkImport() {
+    setBulkResult(null);
+    setIsBulkOpen(true);
+  }
+
+  async function handleBulkUpload(file: File) {
+    if (!db) return;
+    setIsBulkUploading(true);
+    setBulkResult(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("dbId", db.id);
+      const res = await fetch("/api/accurate/vendor/bulk", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Import gagal.", {
+          description: Array.isArray(data.details) ? data.details.slice(0, 5).join("\n") : undefined,
+          duration: 10000,
+        });
+        return;
+      }
+      setBulkResult(data);
+      if (data.summary.created + data.summary.createdNoBank > 0) refetchVendors();
+    } catch {
+      toast.error("Gagal upload file.");
+    } finally {
+      setIsBulkUploading(false);
+      if (bulkFileInputRef.current) bulkFileInputRef.current.value = "";
+    }
+  }
+
   async function handleSaveVendor() {
     if (
       !vendorForm.name.trim() ||
@@ -427,16 +477,28 @@ export default function DatabaseDetailPage({ params }: { params: Promise<{ id: s
                   <span className="text-sm text-zinc-400 ml-auto">{filteredVendor.length} vendor</span>
                 )}
                 {isAdmin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`h-9 gap-1.5 ${vendor.loaded && !vendor.error ? "" : "ml-auto"}`}
-                    onClick={openAddVendor}
-                    aria-label="Tambah vendor baru"
-                  >
-                    <Plus size={13} aria-hidden="true" />
-                    Tambah Vendor
-                  </Button>
+                  <div className={`flex items-center gap-2 ${vendor.loaded && !vendor.error ? "" : "ml-auto"}`}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 gap-1.5"
+                      onClick={openBulkImport}
+                      aria-label="Import vendor secara massal dari file"
+                    >
+                      <Upload size={13} aria-hidden="true" />
+                      Import Bulk
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 gap-1.5"
+                      onClick={openAddVendor}
+                      aria-label="Tambah vendor baru"
+                    >
+                      <Plus size={13} aria-hidden="true" />
+                      Tambah Vendor
+                    </Button>
+                  </div>
                 )}
               </div>
               <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
@@ -829,6 +891,102 @@ export default function DatabaseDetailPage({ params }: { params: Promise<{ id: s
               aria-label="Simpan vendor baru"
             >
               {vendorSaving ? <Loader2 size={14} className="animate-spin" /> : "Simpan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Bulk Vendor dialog (admin only) */}
+      <Dialog
+        open={isBulkOpen}
+        onOpenChange={(o) => { if (!o && !isBulkUploading) setIsBulkOpen(false); }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base">Import Vendor Bulk</DialogTitle>
+          </DialogHeader>
+
+          <p className="text-xs text-zinc-500 -mt-2">
+            Upload file export &quot;Daftar Pemasok&quot; dari Accurate (.xls/.xlsx). Vendor yang
+            bank-nya belum dikenali sistem tetap dibuat, tapi rekeningnya perlu ditambah manual.
+          </p>
+
+          {!bulkResult ? (
+            <>
+              <button
+                onClick={() => bulkFileInputRef.current?.click()}
+                disabled={isBulkUploading}
+                className="w-full rounded-xl border-2 border-dashed border-zinc-200 bg-white hover:border-zinc-300 px-6 py-8 flex flex-col items-center gap-2.5 transition-colors disabled:opacity-60"
+              >
+                {isBulkUploading ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin text-blue-600" />
+                    <p className="text-sm text-zinc-600">Memproses & menyimpan vendor ke Accurate…</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={20} className="text-zinc-400" />
+                    <p className="text-sm font-medium text-zinc-700">Klik untuk pilih file</p>
+                    <p className="text-xs text-zinc-400">.xls · .xlsx</p>
+                  </>
+                )}
+              </button>
+              <input
+                ref={bulkFileInputRef}
+                type="file"
+                accept=".xls,.xlsx"
+                className="sr-only"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBulkUpload(f); }}
+              />
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2.5">
+                  <p className="text-lg font-bold text-emerald-700">{bulkResult.summary.created}</p>
+                  <p className="text-[10px] text-emerald-600">Lengkap</p>
+                </div>
+                <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5">
+                  <p className="text-lg font-bold text-amber-700">{bulkResult.summary.createdNoBank}</p>
+                  <p className="text-[10px] text-amber-600">Tanpa Rekening</p>
+                </div>
+                <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2.5">
+                  <p className="text-lg font-bold text-red-700">{bulkResult.summary.failed}</p>
+                  <p className="text-[10px] text-red-600">Gagal</p>
+                </div>
+              </div>
+
+              {bulkResult.results.some((r) => r.status !== "created") && (
+                <div className="max-h-56 overflow-y-auto border border-zinc-200 rounded-lg divide-y divide-zinc-100">
+                  {bulkResult.results.filter((r) => r.status !== "created").map((r, i) => (
+                    <div key={i} className="px-3 py-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Badge className={`text-[10px] px-1.5 ${r.status === "failed" ? "bg-red-50 text-red-700 border-red-100" : "bg-amber-50 text-amber-700 border-amber-100"}`}>
+                          {r.status === "failed" ? "Gagal" : "Tanpa Rekening"}
+                        </Badge>
+                        <span className="text-zinc-700 truncate">{r.name}</span>
+                      </div>
+                      {r.detail && <p className="text-zinc-400 mt-0.5">{r.detail}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            {bulkResult && (
+              <Button variant="outline" className="h-10" onClick={() => setBulkResult(null)}>
+                Import File Lain
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              className="h-10 gap-1.5"
+              onClick={() => setIsBulkOpen(false)}
+              disabled={isBulkUploading}
+            >
+              <X size={13} /> Tutup
             </Button>
           </DialogFooter>
         </DialogContent>
