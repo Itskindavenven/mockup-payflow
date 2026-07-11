@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "@/lib/session";
 import { fetchOtherPaymentAdminFees, fetchPurchasePaymentsByVendor } from "@/lib/accurate-api";
 import { resolveAccurateDbId } from "@/lib/db-alias";
 
@@ -8,6 +9,8 @@ function toAccurateDate(iso: string): string {
 }
 
 export async function GET(req: NextRequest) {
+  const session = await getServerSession();
+  if (!session) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { searchParams } = req.nextUrl;
   const from = searchParams.get("from");
   const to = searchParams.get("to");
@@ -21,8 +24,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const [adminFees, vendorPayments] = await Promise.all([
-      fetchOtherPaymentAdminFees(dbId, fromDate, toDate),
-      fetchPurchasePaymentsByVendor(dbId, fromDate, toDate),
+      fetchOtherPaymentAdminFees(session.id, dbId, fromDate, toDate),
+      fetchPurchasePaymentsByVendor(session.id, dbId, fromDate, toDate),
     ]);
     return NextResponse.json({ adminFees, vendorPayments });
   } catch (e) {

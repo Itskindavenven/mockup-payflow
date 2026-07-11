@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setAccountToken } from "@/lib/accurate-token-store";
+import { getServerSession } from "@/lib/session";
 
 export async function GET(req: NextRequest) {
+  // Each app user has their own Accurate connection (see
+  // accurate-token-store.ts) — attach the token to whoever's app session
+  // is present on THIS request, not to a value carried in `state` (state
+  // is unsigned/attacker-observable, see the comment in /api/auth/login).
+  const session = await getServerSession();
+  if (!session) {
+    return NextResponse.json({ error: "Sesi aplikasi sudah habis — silakan login ulang lalu coba connect Accurate lagi." }, { status: 401 });
+  }
+
   const code = req.nextUrl.searchParams.get("code");
   if (!code) {
     const allParams: Record<string, string> = {};
@@ -40,7 +50,7 @@ export async function GET(req: NextRequest) {
   // updated, so every reconnect required a human in the loop past this
   // point. Persist it here instead so a fresh OAuth login is immediately
   // live for every subsequent Accurate API call.
-  await setAccountToken({ accessToken: token.access_token, refreshToken: token.refresh_token });
+  await setAccountToken(session.id, { accessToken: token.access_token, refreshToken: token.refresh_token });
 
   // `state` carries the internal path the user was headed to before being
   // bounced out to Accurate's OAuth login (see /api/auth/login) — same

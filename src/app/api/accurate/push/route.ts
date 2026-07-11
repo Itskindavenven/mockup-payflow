@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "@/lib/session";
 import { pushOtherPayment, OtherPaymentDetail } from "@/lib/accurate-api";
 import { resolveAccurateDbId } from "@/lib/db-alias";
 
@@ -14,6 +15,9 @@ interface PushBody {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getServerSession();
+  if (!session) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   let body: PushBody;
   try {
     body = await req.json();
@@ -33,7 +37,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await pushOtherPayment(resolveAccurateDbId(body.dbId ?? "db-retail"), {
+    const result = await pushOtherPayment(session.id, resolveAccurateDbId(body.dbId ?? "db-retail"), {
       bankNo: body.bankNo,
       payee: body.payee,
       transDate: body.transDate,

@@ -36,12 +36,14 @@ export async function POST(req: NextRequest) {
   // saat sebuah API call gagal). fetchAccurateDatabases() sendiri sudah retry
   // sekali via refreshAccountToken() kalau access_token basi — jadi login ini
   // otomatis "menghidupkan" token yang basi selama refresh_token masih valid.
-  // Kalau gagal (refresh_token juga sudah invalid / Accurate down), jangan
-  // gagalkan login — user tetap harus bisa masuk ke app, cuma dikasih tahu.
+  // Kalau gagal (belum pernah connect Accurate, refresh_token invalid, atau
+  // Accurate down), jangan gagalkan login — user tetap harus bisa masuk ke
+  // app, cuma dikasih tahu (mis. user baru yang belum connect Accurate sama
+  // sekali akan selalu masuk sini, itu normal).
   let accurateStatus: "ok" | "error" = "ok";
   let accurateError: string | undefined;
   try {
-    await fetchAccurateDatabases();
+    await fetchAccurateDatabases(user.id);
   } catch (e) {
     accurateStatus = "error";
     accurateError = e instanceof Error ? e.message : String(e);

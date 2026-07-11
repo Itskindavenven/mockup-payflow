@@ -58,14 +58,13 @@ function looksLikeInvalidSession(text: string): boolean {
   }
 }
 
-// Central fetch wrapper: attaches the current token/session for the
-// given database, and on an auth error, refreshes the right thing (OAuth
-// token vs. just the database session) and retries once. Accurate
-// invalidates the previous access_token every time a new one is issued
-// (e.g. a fresh OAuth login), so relying on static env vars alone breaks
-// in production the moment that happens.
-async function accurateFetch(dbId: string, pathAndQuery: string, init: RequestInit = {}): Promise<Response> {
-  let { account, db } = await getDbSession(dbId);
+// Central fetch wrapper: attaches the current token/session for the given
+// user+database, and on an auth error, refreshes the right thing (OAuth
+// token vs. just the database session) and retries once. Every call is
+// scoped to `userId` — each app user has their own independent Accurate
+// connection (see accurate-token-store.ts for why).
+async function accurateFetch(userId: string, dbId: string, pathAndQuery: string, init: RequestInit = {}): Promise<Response> {
+  let { account, db } = await getDbSession(userId, dbId);
   const doFetch = () =>
     fetch(`${db.host}${pathAndQuery}`, {
       ...init,
@@ -79,27 +78,30 @@ async function accurateFetch(dbId: string, pathAndQuery: string, init: RequestIn
   let res = await doFetch();
   const text = await res.clone().text();
   if (looksLikeInvalidToken(text)) {
-    account = await refreshAccountToken();
-    db = await refreshDbSession(dbId, account.accessToken);
+    account = await refreshAccountToken(userId);
+    db = await refreshDbSession(userId, dbId, account.accessToken);
     res = await doFetch();
   } else if (looksLikeInvalidSession(text)) {
-    db = await refreshDbSession(dbId, account.accessToken);
+    db = await refreshDbSession(userId, dbId, account.accessToken);
     res = await doFetch();
   }
   return res;
 }
 
-export async function fetchAccurateDatabases(): Promise<AccurateDatabaseInfo[]> {
+export async function fetchAccurateDatabases(userId: string): Promise<AccurateDatabaseInfo[]> {
   // db-list.do is account-level (not tied to any one database), so it
   // needs its own light retry instead of accurateFetch's per-db flow.
-  const account = await loadAccountToken();
+  const account = await loadAccountToken(userId);
+  if (!account) {
+    throw new Error("Akun Accurate belum terhubung untuk user ini — silakan connect di halaman Settings.");
+  }
   const call = (token: string) =>
     fetch("https://account.accurate.id/api/db-list.do", { headers: { Authorization: `Bearer ${token}` } });
 
   let res = await call(account.accessToken);
   let json = await res.json();
   if (json?.error === "invalid_token") {
-    const refreshed = await refreshAccountToken();
+    const refreshed = await refreshAccountToken(userId);
     res = await call(refreshed.accessToken);
     json = await res.json();
   }
@@ -107,14 +109,14 @@ export async function fetchAccurateDatabases(): Promise<AccurateDatabaseInfo[]> 
   return json.d;
 }
 
-export async function fetchCOABank(dbId: string): Promise<AccurateCOA[]> {
+export async function fetchCOABank(userId: string, dbId: string): Promise<AccurateCOA[]> {
   const params = new URLSearchParams({
     fields: "no,name,accountType",
     "sp.pageSize": "100",
     "filter.accountType.op": "EQUAL",
     "filter.accountType.val": "CASH_BANK",
   });
-  const res = await accurateFetch(dbId, `/accurate/api/glaccount/list.do?${params}`, { cache: "no-store" });
+  const res = await accurateFetch(userId, dbId, `/accurate/api/glaccount/list.do?${params}`, { cache: "no-store" });
   const json = await res.json();
   if (!json.s) throw new Error("fetchCOABank failed: " + JSON.stringify(json));
   return json.d;
@@ -123,7 +125,7 @@ export async function fetchCOABank(dbId: string): Promise<AccurateCOA[]> {
 // Tipe akun yang relevan buat validasi AP: Beban & Beban Lainnya.
 const EXPENSE_ACCOUNT_TYPES = new Set(["EXPENSE", "OTHER_EXPENSE"]);
 
-export async function fetchCOA(dbId: string): Promise<AccurateCOA[]> {
+export async function fetchCOA(userId: string, dbId: string): Promise<AccurateCOA[]> {
   const pageSize = 100;
   const all: AccurateCOA[] = [];
   let page = 1;
@@ -135,7 +137,7 @@ export async function fetchCOA(dbId: string): Promise<AccurateCOA[]> {
       "sp.pageSize": String(pageSize),
       "sp.page": String(page),
     });
-    const res = await accurateFetch(dbId, `/accurate/api/glaccount/list.do?${params}`, { cache: "no-store" });
+    const res = await accurateFetch(userId, dbId, `/accurate/api/glaccount/list.do?${params}`, { cache: "no-store" });
     const json = await res.json();
     if (!json.s) throw new Error("fetchCOA failed: " + JSON.stringify(json));
     const rows: AccurateCOA[] = json.d ?? [];
@@ -146,12 +148,12 @@ export async function fetchCOA(dbId: string): Promise<AccurateCOA[]> {
   return all.filter((c) => EXPENSE_ACCOUNT_TYPES.has(c.accountType));
 }
 
-export async function fetchVendors(dbId: string): Promise<AccurateVendor[]> {
+export async function fetchVendors(userId: string, dbId: string): Promise<AccurateVendor[]> {
   const params = new URLSearchParams({
     fields: "id,name,vendorNo,vendorBranchName",
     "sp.pageSize": "100",
   });
-  const res = await accurateFetch(dbId, `/accurate/api/vendor/list.do?${params}`, { cache: "no-store" });
+  const res = await accurateFetch(userId, dbId, `/accurate/api/vendor/list.do?${params}`, { cache: "no-store" });
   const json = await res.json();
   if (!json.s) throw new Error("fetchVendors failed: " + JSON.stringify(json));
   const vendors: AccurateVendor[] = json.d;
@@ -162,7 +164,7 @@ export async function fetchVendors(dbId: string): Promise<AccurateVendor[]> {
   await Promise.all(
     vendors.map(async (v) => {
       try {
-        const detailRes = await accurateFetch(dbId, `/accurate/api/vendor/detail.do?id=${v.id}`, { cache: "no-store" });
+        const detailRes = await accurateFetch(userId, dbId, `/accurate/api/vendor/detail.do?id=${v.id}`, { cache: "no-store" });
         const detailJson = await detailRes.json();
         const bank = detailJson?.d?.detailBank?.[0];
         if (bank) {
@@ -187,7 +189,7 @@ export interface AdminFeeEntry {
 
 // Biaya admin (bank fee) per periode — dikorek dari other-payment yang sudah
 // terposting di Accurate, baris detail yang nama akunnya mengandung "admin".
-export async function fetchOtherPaymentAdminFees(dbId: string, fromDate: string, toDate: string): Promise<AdminFeeEntry[]> {
+export async function fetchOtherPaymentAdminFees(userId: string, dbId: string, fromDate: string, toDate: string): Promise<AdminFeeEntry[]> {
   const listParams = new URLSearchParams({
     fields: "id,transDate",
     "sp.pageSize": "100",
@@ -195,13 +197,13 @@ export async function fetchOtherPaymentAdminFees(dbId: string, fromDate: string,
   });
   listParams.append("filter.transDate.val[0]", fromDate);
   listParams.append("filter.transDate.val[1]", toDate);
-  const listRes = await accurateFetch(dbId, `/accurate/api/other-payment/list.do?${listParams}`, { cache: "no-store" });
+  const listRes = await accurateFetch(userId, dbId, `/accurate/api/other-payment/list.do?${listParams}`, { cache: "no-store" });
   const listJson = await listRes.json();
   if (!listJson.s) throw new Error("fetchOtherPaymentAdminFees failed: " + JSON.stringify(listJson));
 
   const entries: AdminFeeEntry[] = [];
   for (const row of listJson.d as { id: number; transDate: string }[]) {
-    const res = await accurateFetch(dbId, `/accurate/api/other-payment/detail.do?id=${row.id}`, { cache: "no-store" });
+    const res = await accurateFetch(userId, dbId, `/accurate/api/other-payment/detail.do?id=${row.id}`, { cache: "no-store" });
     const json = await res.json();
     if (!json.s) continue;
     const detailAccount = json.d?.detailAccount ?? [];
@@ -228,7 +230,7 @@ export interface VendorPaymentEntry {
 }
 
 // Pembayaran ke vendor (Pembayaran Pembelian) per periode, buat report per vendor.
-export async function fetchPurchasePaymentsByVendor(dbId: string, fromDate: string, toDate: string): Promise<VendorPaymentEntry[]> {
+export async function fetchPurchasePaymentsByVendor(userId: string, dbId: string, fromDate: string, toDate: string): Promise<VendorPaymentEntry[]> {
   const listParams = new URLSearchParams({
     fields: "id,transDate,chequeAmount",
     "sp.pageSize": "100",
@@ -236,13 +238,13 @@ export async function fetchPurchasePaymentsByVendor(dbId: string, fromDate: stri
   });
   listParams.append("filter.transDate.val[0]", fromDate);
   listParams.append("filter.transDate.val[1]", toDate);
-  const listRes = await accurateFetch(dbId, `/accurate/api/purchase-payment/list.do?${listParams}`, { cache: "no-store" });
+  const listRes = await accurateFetch(userId, dbId, `/accurate/api/purchase-payment/list.do?${listParams}`, { cache: "no-store" });
   const listJson = await listRes.json();
   if (!listJson.s) throw new Error("fetchPurchasePaymentsByVendor failed: " + JSON.stringify(listJson));
 
   const entries: VendorPaymentEntry[] = [];
   for (const row of listJson.d as { id: number; transDate: string; chequeAmount: number }[]) {
-    const res = await accurateFetch(dbId, `/accurate/api/purchase-payment/detail.do?id=${row.id}`, { cache: "no-store" });
+    const res = await accurateFetch(userId, dbId, `/accurate/api/purchase-payment/detail.do?id=${row.id}`, { cache: "no-store" });
     const json = await res.json();
     if (!json.s) continue;
     entries.push({
@@ -255,7 +257,7 @@ export async function fetchPurchasePaymentsByVendor(dbId: string, fromDate: stri
   return entries;
 }
 
-export async function pushOtherPayment(dbId: string, payload: {
+export async function pushOtherPayment(userId: string, dbId: string, payload: {
   bankNo: string;
   payee: string;
   transDate: string; // dd/MM/yyyy
@@ -274,7 +276,7 @@ export async function pushOtherPayment(dbId: string, payload: {
     body.set(`detailAccount[${i}].amount`, String(row.amount));
     if (row.memo) body.set(`detailAccount[${i}].memo`, row.memo);
   });
-  const res = await accurateFetch(dbId, `/accurate/api/other-payment/save.do`, {
+  const res = await accurateFetch(userId, dbId, `/accurate/api/other-payment/save.do`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
@@ -318,7 +320,7 @@ export function findBankKeyByName(bankNameRaw: string): BankKey | null {
 // `bank` dibiarkan undefined untuk vendor tanpa rekening bank (mis. bank-nya
 // nggak ada di BANK_MASTER — lihat findBankKeyByName) — vendor tetap
 // dibuat, rekening ditambah manual belakangan.
-export async function saveVendor(dbId: string, payload: {
+export async function saveVendor(userId: string, dbId: string, payload: {
   name: string;
   bank?: BankKey;
   accountName?: string;
@@ -337,7 +339,7 @@ export async function saveVendor(dbId: string, payload: {
     body.set("detailBank[0].bankId", bank.bankId);
     body.set("detailBank[0].vendorBankId", bank.vendorBankId);
   }
-  const res = await accurateFetch(dbId, `/accurate/api/vendor/save.do`, {
+  const res = await accurateFetch(userId, dbId, `/accurate/api/vendor/save.do`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,

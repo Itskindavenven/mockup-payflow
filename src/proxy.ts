@@ -49,8 +49,13 @@ export async function proxy(req: NextRequest) {
     return res;
   }
 
-  // Admin-only routes
-  if ((pathname.startsWith("/admin") || pathname.startsWith("/settings")) && payload.role !== "admin") {
+  // Admin-only routes. /settings used to be admin-only too, but it's also
+  // where every user connects their own Accurate account (see
+  // accurate-token-store.ts — each app user has an independent Accurate
+  // OAuth connection now), so all logged-in users need it. Actions that
+  // are still meant to be admin-only there (add/bulk-import vendor, etc.)
+  // stay gated server-side in their own API routes.
+  if (pathname.startsWith("/admin") && payload.role !== "admin") {
     return NextResponse.redirect(new URL("/transaksi", req.url));
   }
 

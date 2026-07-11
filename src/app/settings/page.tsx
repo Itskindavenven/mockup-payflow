@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { useSession } from "@/components/session-provider";
 
 interface AccurateDb {
   id: string;
@@ -40,6 +41,7 @@ const PUSH_MODES = [
 ];
 
 export default function SettingsPage() {
+  const session = useSession();
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [databases, setDatabases] = useState<AccurateDb[]>([]);
@@ -73,7 +75,7 @@ export default function SettingsPage() {
   }
 
   async function handleDisconnect() {
-    if (!window.confirm("Putuskan koneksi Accurate Online? Semua user perlu login/reconnect ulang setelah ini.")) return;
+    if (!window.confirm("Putuskan koneksi Accurate Online kamu? Kamu perlu connect ulang untuk pakai fitur yang butuh Accurate lagi. User lain tidak terpengaruh.")) return;
     setIsDisconnecting(true);
     try {
       const res = await fetch("/api/auth/disconnect", { method: "POST" });
@@ -134,7 +136,7 @@ export default function SettingsPage() {
                   </div>
                   <p className="text-sm text-zinc-700 mt-0.5 font-medium">{connectedDb?.name ?? "Memuat..."}</p>
                   <p className="text-xs text-zinc-400 mt-0.5 font-mono">{connectedDb?.dbCode ?? ""}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">bonaventuraoctavito@gmail.com</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">{session?.email ?? ""}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">

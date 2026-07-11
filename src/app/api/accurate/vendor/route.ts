@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await saveVendor(resolveAccurateDbId(body.dbId ?? "db-retail"), {
+    const result = await saveVendor(session.id, resolveAccurateDbId(body.dbId ?? "db-retail"), {
       name: body.name,
       bank: bankKey,
       accountName: body.accountName,

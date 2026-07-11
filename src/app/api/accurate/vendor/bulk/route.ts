@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   for (const row of rows) {
     try {
-      const result = await saveVendor(resolvedDbId, {
+      const result = await saveVendor(session.id, resolvedDbId, {
         name: row.name,
         bank: row.bankKey ?? undefined,
         accountName: row.name,
