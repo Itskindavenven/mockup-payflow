@@ -137,16 +137,28 @@ export default function SettingsPage() {
                   <p className="text-xs text-zinc-400 mt-0.5">bonaventuraoctavito@gmail.com</p>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                className="h-9 gap-2"
-                onClick={handleReconnect}
-                disabled={isReconnecting}
-                aria-label="Perbarui koneksi ke Accurate Online"
-              >
-                <RefreshCw size={13} className={isReconnecting ? "animate-spin" : ""} aria-hidden="true" />
-                {isReconnecting ? "Memperbarui..." : "Perbarui Token"}
-              </Button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  variant="outline"
+                  className="h-9 gap-2"
+                  onClick={handleReconnect}
+                  disabled={isReconnecting}
+                  aria-label="Perbarui koneksi ke Accurate Online"
+                >
+                  <RefreshCw size={13} className={isReconnecting ? "animate-spin" : ""} aria-hidden="true" />
+                  {isReconnecting ? "Memperbarui..." : "Perbarui Token"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-9 gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                  onClick={handleDisconnect}
+                  disabled={isDisconnecting}
+                  aria-label="Logout dari akun Accurate Online"
+                >
+                  {isDisconnecting ? <Loader2 size={13} className="animate-spin" /> : <Unplug size={13} aria-hidden="true" />}
+                  {isDisconnecting ? "Memutuskan..." : "Logout Accurate"}
+                </Button>
+              </div>
             </div>
 
             <Separator />
@@ -305,40 +317,6 @@ export default function SettingsPage() {
                 </div>
               </button>
             ))}
-          </div>
-        </motion.div>
-
-        <Separator />
-
-        {/* ── Danger zone ── */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.25, duration: 0.3 }}
-          className="space-y-4"
-        >
-          <div className="flex items-center gap-2">
-            <Unplug size={15} className="text-red-400" aria-hidden="true" />
-            <h2 className="text-base font-semibold text-zinc-800">Putuskan Koneksi</h2>
-          </div>
-          <div className="bg-red-50 border border-red-100 rounded-xl px-5 py-4 flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <p className="text-sm font-medium text-red-700">Putuskan dari Accurate Online</p>
-              <p className="text-sm text-red-500 mt-1 leading-relaxed">
-                Token OAuth akan dihapus. Anda perlu login ulang untuk melanjutkan push transaksi.
-                Semua konfigurasi (keyword, pemetaan rekening) akan tetap tersimpan.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              disabled={isDisconnecting}
-              className="h-9 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 flex-shrink-0 gap-1.5"
-              onClick={handleDisconnect}
-              aria-label="Putuskan koneksi dari Accurate Online"
-            >
-              {isDisconnecting && <Loader2 size={13} className="animate-spin" />}
-              Putuskan Koneksi
-            </Button>
           </div>
         </motion.div>
 
