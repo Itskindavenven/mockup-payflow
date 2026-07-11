@@ -51,6 +51,7 @@ function LoginForm() {
       console.log("[debug] /api/app-auth/login response:", data);
 
       if (data.accurateStatus === "error") {
+        console.log("[debug] accurateStatus is error, entering redirect branch");
         // The proactive refresh attempted during login (see
         // /api/app-auth/login) already failed — refresh_token itself is
         // dead, not just the access_token, so no automatic retry can fix
@@ -62,12 +63,17 @@ function LoginForm() {
           description: data.accurateError,
           duration: 5000,
         });
-        window.location.href = `/api/auth/login?from=${encodeURIComponent(target)}`;
+        const reconnectUrl = `/api/auth/login?from=${encodeURIComponent(target)}`;
+        console.log("[debug] navigating to:", reconnectUrl);
+        window.location.href = reconnectUrl;
+        console.log("[debug] navigation call returned (this line running means location.href didn't throw)");
         return;
       }
 
+      console.log("[debug] accurateStatus is ok, navigating straight to target:", target);
       window.location.href = target;
-    } catch {
+    } catch (err) {
+      console.error("[debug] handleSubmit threw:", err);
       toast.error("Koneksi ke server gagal.");
     } finally {
       setLoading(false);

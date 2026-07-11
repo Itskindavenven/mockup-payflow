@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   // this OAuth flow belongs to, so require an app session before sending
   // anyone off to Accurate's consent screen.
   const session = await getServerSession();
+  console.log("[debug] GET /api/auth/login hit, session present:", session !== null);
   if (!session) {
     return NextResponse.json({ error: "Harus login ke aplikasi dulu sebelum connect Accurate." }, { status: 401 });
   }
