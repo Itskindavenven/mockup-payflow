@@ -26,6 +26,7 @@ import {
   formatRupiah,
   cleanDescription,
   extractRefNo,
+  extractBankAccountNo,
   KeywordEntry,
 } from "@/lib/parser";
 
@@ -325,6 +326,16 @@ export function TransactionTable({
                           <span className={`text-xs ${row.is_admin_fee ? "text-amber-600" : "text-zinc-700"}`}>
                             {cleanDescription(row.description_raw)}
                           </span>
+                          {(() => {
+                            const acctNo = extractBankAccountNo(row.description_raw);
+                            if (!acctNo) return null;
+                            return (
+                              <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                                {row.detected_vendor_bank_name ? `${row.detected_vendor_bank_name} · ` : ""}
+                                {acctNo}
+                              </p>
+                            );
+                          })()}
                           {isFirst && (
                             <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
                               {row.post_date.slice(0, 10)}

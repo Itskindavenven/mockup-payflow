@@ -37,6 +37,7 @@ export interface InvoiceValidation {
 export interface ParsedTransaction {
   detected_invoice_no: string | null;
   detected_vendor: string | null;
+  detected_vendor_bank_name: string | null; // nama bank vendor terdaftar di Accurate (kalau vendor ke-match)
   detected_keyword: string | null;
   suggested_coa: string | null;
   suggested_coa_no: string | null;  // Accurate COA number for push
@@ -64,6 +65,7 @@ export interface JournalGroup {
   display_label: string;
   detected_invoice_no: string | null;
   detected_vendor: string | null;
+  detected_vendor_bank_name: string | null;
   detected_keyword: string | null;
   suggested_coa: string | null;
   suggested_coa_no: string | null;
@@ -81,6 +83,10 @@ export function isAdminFee(desc: string): boolean {
   return lower.includes("biaya admin") || lower.trim() === "by trx bifast";
 }
 
+// Format "Inv/YYYY/MM/DD/KODE" — dipertahankan sebagai fallback kalau ada
+// bank/format lain yang benar-benar pakai ini, tapi bukan format asli BNI
+// (lihat BNI_INVOICE_SEGMENT_REGEX di bawah untuk format yang sebenarnya
+// muncul di e-statement TRANSFER KE nyata).
 const INVOICE_REGEX = /Inv\/(\d{4}\/\d{2}\/\d{2}\/\S+)/i;
 
 // Nomor rekening tujuan/sumber di deskripsi transfer BNI — sama pola yang
@@ -95,9 +101,35 @@ export function extractBankAccountNo(desc: string): string | null {
   return match ? match[1] : null;
 }
 
+// Nomor invoice asli di e-statement BNI TRANSFER KE muncul sebagai SATU
+// segmen pipe-delimited berdiri sendiri di antara nama vendor/cabang dan
+// segmen rekening+referensi paling akhir — TANPA prefix "Inv/" (itu cuma
+// rekaan mockup lama, tidak pernah muncul di data asli). Contoh nyata:
+// "TRANSFER KE | PEMINDAHAN KE   5070535448    SEDAAP SEJAHTERA BERSAM |
+//  PASAR NONGKO | SI39920 | 5070535448 202604014586860900" -> "SI39920".
+//
+// Masalahnya: segmen di posisi yang sama sering diisi memo bebas, bukan
+// invoice (mis. "PSN 02 BOT APR26", "PSN 25 uang saku pkl 21-22mar26") —
+// jadi butuh heuristik buat bedain kode invoice asli dari memo: kode
+// invoice nggak ada spasi & nggak ada huruf kecil (huruf kapital pendek +
+// digit), memo hampir selalu ada spasi/huruf kecil.
+const BNI_INVOICE_SEGMENT_REGEX = /^[A-Z]{1,5}\d{3,}$/;
+
+function extractInvoiceFromPipeSegments(desc: string): string | null {
+  if (!/TRANSFER KE/i.test(desc)) return null;
+  const parts = desc.split("|").map((p) => p.trim()).filter(Boolean);
+  // Segmen pertama = "TRANSFER KE", kedua = "PEMINDAHAN KE <acct> <vendor>",
+  // terakhir = "<acct> <ref>" — invoice (kalau ada) di antara keduanya.
+  for (const part of parts.slice(2, -1)) {
+    if (BNI_INVOICE_SEGMENT_REGEX.test(part)) return part;
+  }
+  return null;
+}
+
 export interface VendorLookup {
   name: string;
   accountNo?: string;
+  bankName?: string;
 }
 
 function findVendorByAccountNo(desc: string, vendors: VendorLookup[]): VendorLookup | null {
@@ -111,12 +143,43 @@ function findVendorByAccountNo(desc: string, vendors: VendorLookup[]): VendorLoo
 // dipakai sebagai sinyal kedua yang saling menguatkan/mengecek silang
 // findVendorByAccountNo, bukan pengganti. Nama pendek (<=3 char) di-skip
 // biar nggak nyangkut ke substring yang kebetulan sama.
+//
+// Toleransi 2 pola nyata yang kejadian di rekening koran BNI: (1) prefix
+// badan hukum ("CV Sedaap Sejahtera Bersama" di Accurate vs "SEDAAP
+// SEJAHTERA BERSAM" di statement — nggak ada "CV"-nya), dan (2) nama
+// kepotong di akhir kalau kepanjangan untuk field statement ("BERSAMA"
+// jadi "BERSAM"). Exact-substring tetap dicoba dulu; kalau gagal, baru
+// coba versi tanpa prefix badan hukum + toleransi motong beberapa huruf
+// terakhir.
+const LEGAL_ENTITY_PREFIXES = ["pt", "cv", "ud", "pd", "fa", "toko", "bpk", "ibu"];
+
+function stripLegalPrefix(name: string): string {
+  const words = name.trim().split(/\s+/);
+  const first = words[0]?.toLowerCase().replace(/\.$/, "");
+  if (words.length > 1 && LEGAL_ENTITY_PREFIXES.includes(first)) {
+    return words.slice(1).join(" ");
+  }
+  return name.trim();
+}
+
+// Coba "core" apa adanya, lalu progresif buang sampai 6 huruf terakhir —
+// menutupi kasus nama vendor kepotong di ujung karena batas panjang field
+// statement, tanpa jadi terlalu longgar (berhenti begitu sisa <=3 huruf).
+function coreMatchesDescription(core: string, lowerDesc: string): boolean {
+  for (let cut = 0; cut <= 6 && core.length - cut > 3; cut++) {
+    const candidate = cut === 0 ? core : core.slice(0, -cut);
+    if (lowerDesc.includes(candidate)) return true;
+  }
+  return false;
+}
+
 function findVendorByNameInDescription(desc: string, vendors: VendorLookup[]): VendorLookup | null {
   const lowerDesc = desc.toLowerCase();
   return (
-    vendors.find(
-      (v) => v.name.trim().length > 3 && lowerDesc.includes(v.name.trim().toLowerCase())
-    ) ?? null
+    vendors.find((v) => {
+      const core = stripLegalPrefix(v.name).toLowerCase();
+      return core.length > 3 && coreMatchesDescription(core, lowerDesc);
+    }) ?? null
   );
 }
 
@@ -137,7 +200,7 @@ export function parseTransaction(
   const invoiceMatch = description_raw.match(INVOICE_REGEX);
   const detected_invoice_no = invoiceMatch
     ? invoiceMatch[1].replace(/\s.*$/, "")
-    : null;
+    : extractInvoiceFromPipeSegments(description_raw);
 
   const lowerDesc = description_raw.toLowerCase();
   const matchedKeyword = keywordMap.find((k) =>
@@ -157,6 +220,7 @@ export function parseTransaction(
   const vendorConflict = !!vendorByAccount && !!vendorByName && vendorByAccount.name !== vendorByName.name;
   const matchedVendor = vendorConflict ? null : vendorByAccount ?? vendorByName;
   const detected_vendor = matchedVendor?.name ?? null;
+  const detected_vendor_bank_name = matchedVendor?.bankName ?? null;
 
   let accurate_status: AccurateStatus;
   let sync_action: SyncAction;
@@ -236,6 +300,7 @@ export function parseTransaction(
   return {
     detected_invoice_no,
     detected_vendor,
+    detected_vendor_bank_name,
     detected_keyword,
     suggested_coa,
     suggested_coa_no,
@@ -325,6 +390,7 @@ export function groupByJournalNo(rows: EnrichedTransaction[]): JournalGroup[] {
         display_label: parent.display_label,
         detected_invoice_no: parent.detected_invoice_no,
         detected_vendor: parent.detected_vendor,
+        detected_vendor_bank_name: parent.detected_vendor_bank_name,
         detected_keyword: parent.detected_keyword,
         suggested_coa: parent.suggested_coa,
         suggested_coa_no: parent.suggested_coa_no,
@@ -352,6 +418,7 @@ export function groupByJournalNo(rows: EnrichedTransaction[]): JournalGroup[] {
         display_label: feeRow.display_label,
         detected_invoice_no: feeRow.detected_invoice_no,
         detected_vendor: feeRow.detected_vendor,
+        detected_vendor_bank_name: feeRow.detected_vendor_bank_name,
         detected_keyword: feeRow.detected_keyword,
         suggested_coa: feeRow.suggested_coa,
         suggested_coa_no: feeRow.suggested_coa_no,

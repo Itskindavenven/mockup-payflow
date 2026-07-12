@@ -659,7 +659,7 @@ export function TransactionWizard({ keywordMap, onComplete, reuseSession }: Tran
       return;
     }
     const sourceRows = uploadedTransactions ?? RAW_TRANSACTIONS;
-    const vendorLookups = vendors.map((v) => ({ name: v.name, accountNo: v.accountNo }));
+    const vendorLookups = vendors.map((v) => ({ name: v.name, accountNo: v.accountNo, bankName: v.bankName }));
     const enriched = sourceRows.map((raw) =>
       enrichRow(raw, ALREADY_RECORDED_IN_ACCURATE, keywordMap, vendorLookups)
     );
