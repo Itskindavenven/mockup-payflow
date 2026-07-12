@@ -106,6 +106,44 @@ create table if not exists wizard_configs (
   vendor_nos       jsonb not null default '[]'::jsonb
 );
 
+-- ── Master data cache (vendor & COA dari Accurate) ──────────────────────
+-- Bukan sumber kebenaran — cuma cache biar load master data nggak nunggu
+-- Accurate live tiap kali (fetchVendors() khususnya lambat, N+1 detail
+-- call per vendor). Di-replace penuh (bukan upsert incremental) tiap kali
+-- tombol "Sync" di /settings/database/[id] dipencet — lihat
+-- accurate-master-data-store.ts. Kalau cache kosong (belum pernah sync),
+-- API route fallback ke live fetch tanpa nyatet itu sebagai sync resmi.
+create table if not exists accurate_vendors_cache (
+  db_id               text not null,
+  accurate_id         bigint not null,
+  vendor_no           text not null,
+  name                text not null,
+  vendor_branch_name  text,
+  bank_name           text,
+  account_no          text,
+  primary key (db_id, accurate_id)
+);
+
+create table if not exists accurate_gl_accounts_cache (
+  db_id         text not null,
+  no            text not null,
+  name          text not null,
+  account_type  text not null,
+  primary key (db_id, no)
+);
+
+create table if not exists accurate_master_sync_log (
+  id          bigint generated always as identity primary key,
+  db_id       text not null,
+  entity      text not null check (entity in ('vendors', 'gl_accounts')),
+  synced_at   timestamptz not null default now(),
+  synced_by   jsonb not null,   -- { id, name }
+  row_count   integer not null
+);
+
+create index if not exists accurate_master_sync_log_lookup_idx
+  on accurate_master_sync_log (db_id, entity, synced_at desc);
+
 -- updated_at auto-touch trigger, reused across tables
 create or replace function set_updated_at() returns trigger as $$
 begin

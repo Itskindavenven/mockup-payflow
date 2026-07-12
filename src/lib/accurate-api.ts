@@ -148,15 +148,51 @@ export async function fetchCOA(userId: string, dbId: string): Promise<AccurateCO
   return all.filter((c) => EXPENSE_ACCOUNT_TYPES.has(c.accountType));
 }
 
+// Semua gl-account (nggak difilter accountType) — dipakai buat isi cache
+// master data (accurate-master-data-store.ts), yang darinya /api/accurate/coa
+// dan /api/accurate/coa-bank sama-sama bisa filter accountType sendiri
+// tanpa harus sync 2x ke Accurate buat data yang sama.
+export async function fetchAllGlAccounts(userId: string, dbId: string): Promise<AccurateCOA[]> {
+  const pageSize = 100;
+  const all: AccurateCOA[] = [];
+  let page = 1;
+  for (;;) {
+    const params = new URLSearchParams({
+      fields: "no,name,accountType",
+      "sp.pageSize": String(pageSize),
+      "sp.page": String(page),
+    });
+    const res = await accurateFetch(userId, dbId, `/accurate/api/glaccount/list.do?${params}`, { cache: "no-store" });
+    const json = await res.json();
+    if (!json.s) throw new Error("fetchAllGlAccounts failed: " + JSON.stringify(json));
+    const rows: AccurateCOA[] = json.d ?? [];
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+    page += 1;
+  }
+  return all;
+}
+
 export async function fetchVendors(userId: string, dbId: string): Promise<AccurateVendor[]> {
-  const params = new URLSearchParams({
-    fields: "id,name,vendorNo,vendorBranchName",
-    "sp.pageSize": "100",
-  });
-  const res = await accurateFetch(userId, dbId, `/accurate/api/vendor/list.do?${params}`, { cache: "no-store" });
-  const json = await res.json();
-  if (!json.s) throw new Error("fetchVendors failed: " + JSON.stringify(json));
-  const vendors: AccurateVendor[] = json.d;
+  const pageSize = 100;
+  const vendors: AccurateVendor[] = [];
+  let page = 1;
+  // Sama alasannya kayak fetchCOA — Accurate cap sp.pageSize di 100/request,
+  // paginate sampai halaman terakhir supaya vendor >100 nggak kepotong diam-diam.
+  for (;;) {
+    const params = new URLSearchParams({
+      fields: "id,name,vendorNo,vendorBranchName",
+      "sp.pageSize": String(pageSize),
+      "sp.page": String(page),
+    });
+    const res = await accurateFetch(userId, dbId, `/accurate/api/vendor/list.do?${params}`, { cache: "no-store" });
+    const json = await res.json();
+    if (!json.s) throw new Error("fetchVendors failed: " + JSON.stringify(json));
+    const rows: AccurateVendor[] = json.d ?? [];
+    vendors.push(...rows);
+    if (rows.length < pageSize) break;
+    page += 1;
+  }
 
   // list.do nggak expose field nested (detailBank) — ambil rekening bank
   // vendor (kalau ada) lewat detail.do per vendor. detailBank[0] dipakai

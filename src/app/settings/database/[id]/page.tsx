@@ -21,6 +21,7 @@ import {
   Check,
   Upload,
   X,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ import { AppShell } from "@/components/AppShell";
 import { useSession } from "@/components/session-provider";
 import { DEFAULT_BANK_MAPPINGS, BankAccountMapping } from "@/lib/mock-data";
 import type { WizardDbConfig } from "@/lib/wizard-config-store";
+import type { SyncMeta } from "@/lib/accurate-master-data-store";
 
 interface AccurateDb {
   id: string;
@@ -128,6 +130,51 @@ export default function DatabaseDetailPage({ params }: { params: Promise<{ id: s
   // Disimpan server-side (bukan localStorage) supaya konsisten untuk semua
   // user, di browser/device mana pun.
   const [wizardConfig, setWizardConfig] = useState<WizardDbConfig>({ bankAccountNo: null, vendorNos: [] });
+
+  // Sync master data (vendor + COA) — cache lokal biar load-nya cepat,
+  // di-refresh manual lewat tombol "Sync" (lihat accurate-master-data-store.ts).
+  const [syncStatus, setSyncStatus] = useState<{ vendors: SyncMeta | null; glAccounts: SyncMeta | null } | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  function refetchSyncStatus() {
+    if (!db) return;
+    fetch(`/api/accurate/master-data/sync?dbId=${db.id}`)
+      .then((r) => r.json())
+      .then((res) => setSyncStatus(res))
+      .catch(() => {});
+  }
+
+  useEffect(() => {
+    refetchSyncStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db?.id]);
+
+  async function handleSyncMasterData() {
+    if (!db) return;
+    setIsSyncing(true);
+    try {
+      const res = await fetch(`/api/accurate/master-data/sync?dbId=${db.id}`, { method: "POST" });
+      const data = await res.json();
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Sinkron berhasil — ${data.vendors.rowCount} vendor, ${data.glAccounts.rowCount} akun COA.`);
+      setSyncStatus(data);
+      refetchVendors();
+      setCoa((s) => ({ ...s, loading: true }));
+      fetch(`/api/accurate/coa?dbId=${db.id}`)
+        .then((r) => r.json())
+        .then((res) => setCoa({ loading: false, loaded: true, error: null, data: res }))
+        .catch((e) => setCoa({ loading: false, loaded: true, error: String(e), data: [] }));
+      setKasBank((s) => ({ ...s, loading: true }));
+      fetch(`/api/accurate/coa-bank?dbId=${db.id}`)
+        .then((r) => r.json())
+        .then((res) => setKasBank({ loading: false, loaded: true, error: null, data: res }))
+        .catch((e) => setKasBank({ loading: false, loaded: true, error: String(e), data: [] }));
+    } catch (e) {
+      toast.error(`Sinkron gagal: ${String(e)}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  }
 
   useEffect(() => {
     if (!db) return;
@@ -405,10 +452,37 @@ export default function DatabaseDetailPage({ params }: { params: Promise<{ id: s
               </div>
               <p className="text-sm text-zinc-500 mt-1 font-mono">{db.dbCode}</p>
             </div>
-            <Badge className="text-xs font-medium px-2.5 bg-amber-50 text-amber-700 border-amber-100">
-              Sample
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge className="text-xs font-medium px-2.5 bg-amber-50 text-amber-700 border-amber-100">
+                Sample
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-1.5"
+                onClick={handleSyncMasterData}
+                disabled={isSyncing}
+                aria-label="Sinkronkan master data vendor dan COA dari Accurate"
+              >
+                <RefreshCw size={13} className={isSyncing ? "animate-spin" : ""} aria-hidden="true" />
+                {isSyncing ? "Menyinkron…" : "Sync Master Data"}
+              </Button>
+            </div>
           </div>
+          {(syncStatus?.vendors || syncStatus?.glAccounts) ? (
+            <p className="text-xs text-zinc-400">
+              Terakhir sinkron:{" "}
+              {[syncStatus.vendors, syncStatus.glAccounts]
+                .filter((m): m is SyncMeta => !!m)
+                .sort((a, b) => b.syncedAt.localeCompare(a.syncedAt))[0]
+                ?.syncedAt.slice(0, 16).replace("T", " ")}{" "}
+              oleh {(syncStatus.vendors ?? syncStatus.glAccounts)?.syncedBy.name}
+            </p>
+          ) : (
+            <p className="text-xs text-amber-500">
+              Belum pernah sinkron — data COA/vendor diambil live dari Accurate tiap kali dibuka (lebih lambat).
+            </p>
+          )}
         </motion.div>
 
         {/* Tabs */}
