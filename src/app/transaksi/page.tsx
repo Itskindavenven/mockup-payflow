@@ -366,7 +366,7 @@ function TransaksiPageInner() {
         sync_action: group.sync_action,
         bankNo: sessionConfig.kasBank.code,
         transDate: toAccurateDate(group.post_date),
-        payee: cleanDescription(group.primary.description_raw),
+        payee: group.payee_override ?? cleanDescription(group.primary.description_raw),
         detailAccount,
         dbId: sessionConfig.database.id,
         ...(sessionConfig.branchName ? { branchName: sessionConfig.branchName } : {}),

@@ -23,6 +23,17 @@ export const ADMIN_FEE_COA_NO = "611.002-99";
 export type AccurateStatus = "sudah_tercatat" | "akan_dipush" | "perlu_review";
 export type SyncAction = "purchase-payment" | "other-payment" | null;
 
+// Checklist 4-sinyal validasi untuk baris invoice (bukan beban) — semua
+// harus true supaya baris dianggap siap push otomatis. `reason` diisi
+// penjelasan singkat sinyal mana yang gagal, buat ditampilkan ke reviewer.
+export interface InvoiceValidation {
+  invoiceNo: boolean;
+  vendorName: boolean;
+  accountNo: boolean;
+  noConflictingKeyword: boolean;
+  reason: string | null;
+}
+
 export interface ParsedTransaction {
   detected_invoice_no: string | null;
   detected_vendor: string | null;
@@ -32,6 +43,7 @@ export interface ParsedTransaction {
   accurate_status: AccurateStatus;
   sync_action: SyncAction;
   display_label: string;
+  invoice_validation: InvoiceValidation | null; // null untuk baris non-invoice
 }
 
 // Single enriched row — one CSV line
@@ -57,6 +69,9 @@ export interface JournalGroup {
   suggested_coa_no: string | null;
   post_date: string;
   db_cr: "D" | "C";
+  invoice_validation: InvoiceValidation | null;
+  is_admin_fee_split?: boolean; // true untuk grup singleton hasil split biaya admin
+  payee_override?: string;      // payee transaksi induk, dipakai saat push grup biaya admin
 }
 
 // ─── Detection helpers ─────────────────────────────────────────────────────
@@ -91,6 +106,28 @@ function findVendorByAccountNo(desc: string, vendors: VendorLookup[]): VendorLoo
   return vendors.find((v) => v.accountNo && v.accountNo.trim() === acctNo) ?? null;
 }
 
+// Nama vendor sebagai substring bebas di deskripsi — sinyal lebih lemah
+// daripada rekening (nama sering disingkat/typo di rekening koran), jadi
+// dipakai sebagai sinyal kedua yang saling menguatkan/mengecek silang
+// findVendorByAccountNo, bukan pengganti. Nama pendek (<=3 char) di-skip
+// biar nggak nyangkut ke substring yang kebetulan sama.
+function findVendorByNameInDescription(desc: string, vendors: VendorLookup[]): VendorLookup | null {
+  const lowerDesc = desc.toLowerCase();
+  return (
+    vendors.find(
+      (v) => v.name.trim().length > 3 && lowerDesc.includes(v.name.trim().toLowerCase())
+    ) ?? null
+  );
+}
+
+// Nomor invoice/faktur bisa ditulis beda format antara Accurate (mis.
+// "SI.123", "SI-123") dan teks bebas di rekening koran (mis. "SI123") —
+// normalisasi dengan buang semua karakter non-alfanumerik + uppercase
+// supaya perbandingannya nggak kejebak beda tanda baca/kapitalisasi.
+export function normalizeInvoiceNo(s: string): string {
+  return s.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+}
+
 export function parseTransaction(
   description_raw: string,
   alreadyRecorded: string[],
@@ -110,21 +147,66 @@ export function parseTransaction(
   const suggested_coa_from_keyword = matchedKeyword?.coa ?? null;
   const suggested_coa_no_from_keyword = matchedKeyword?.coaNo ?? null;
 
-  // Cocokkan rekening tujuan ke rekening bank vendor yang sudah terdaftar
-  // di Accurate Online — sinyal identitas vendor yang lebih kuat daripada
-  // nebak dari nama pihak di deskripsi (yang sering disingkat/typo).
-  const matchedVendor = detected_invoice_no ? null : findVendorByAccountNo(description_raw, vendors);
+  // Cocokkan identitas vendor dari 2 sinyal independen — rekening tujuan
+  // (kuat) dan nama vendor sebagai substring deskripsi (lebih lemah).
+  // Dijalankan untuk SEMUA baris, termasuk yang sudah punya nomor invoice,
+  // supaya baris invoice juga bisa divalidasi silang identitas vendornya
+  // (bukan cuma dipercaya begitu saja dari nomor invoice).
+  const vendorByAccount = findVendorByAccountNo(description_raw, vendors);
+  const vendorByName = findVendorByNameInDescription(description_raw, vendors);
+  const vendorConflict = !!vendorByAccount && !!vendorByName && vendorByAccount.name !== vendorByName.name;
+  const matchedVendor = vendorConflict ? null : vendorByAccount ?? vendorByName;
   const detected_vendor = matchedVendor?.name ?? null;
 
   let accurate_status: AccurateStatus;
   let sync_action: SyncAction;
   let suggested_coa: string | null = null;
   let suggested_coa_no: string | null = null;
+  let invoice_validation: InvoiceValidation | null = null;
 
   if (detected_invoice_no) {
     const invoiceNum = detected_invoice_no.split("/").pop() ?? detected_invoice_no;
-    accurate_status = alreadyRecorded.includes(invoiceNum) ? "sudah_tercatat" : "akan_dipush";
-    sync_action = accurate_status === "akan_dipush" ? "purchase-payment" : null;
+    const alreadyMatch = alreadyRecorded.some(
+      (rec) => normalizeInvoiceNo(rec) === normalizeInvoiceNo(invoiceNum)
+    );
+
+    // 4 sinyal validasi wajib buat baris invoice: nomor invoice (selalu
+    // true di branch ini), nama vendor, nomor rekening tujuan cocok
+    // vendor, dan deskripsi TIDAK mengandung keyword beban (kalau ada,
+    // berarti klasifikasinya ambigu — bisa jadi bukan invoice beneran).
+    const vendorNameOk = !!detected_vendor && !vendorConflict;
+    const accountNoOk = !!vendorByAccount && !vendorConflict;
+    const noConflictingKeyword = !detected_keyword;
+
+    let reason: string | null = null;
+    if (vendorConflict) {
+      reason = "Nama vendor dan rekening tujuan menunjuk ke vendor yang berbeda.";
+    } else if (!vendorNameOk) {
+      reason = "Nama vendor tidak terdeteksi dari deskripsi maupun rekening tujuan.";
+    } else if (!accountNoOk) {
+      reason = "Nomor rekening tujuan tidak cocok dengan rekening vendor yang terdaftar.";
+    } else if (!noConflictingKeyword) {
+      reason = `Deskripsi juga cocok dengan keyword beban "${detected_keyword}" — klasifikasi ambigu.`;
+    }
+
+    invoice_validation = {
+      invoiceNo: true,
+      vendorName: vendorNameOk,
+      accountNo: accountNoOk,
+      noConflictingKeyword,
+      reason,
+    };
+
+    if (alreadyMatch) {
+      accurate_status = "sudah_tercatat";
+      sync_action = null;
+    } else if (vendorNameOk && accountNoOk && noConflictingKeyword) {
+      accurate_status = "akan_dipush";
+      sync_action = "purchase-payment";
+    } else {
+      accurate_status = "perlu_review";
+      sync_action = null;
+    }
   } else if (detected_keyword) {
     accurate_status = "akan_dipush";
     sync_action = "other-payment";
@@ -160,6 +242,7 @@ export function parseTransaction(
     accurate_status,
     sync_action,
     display_label,
+    invoice_validation,
   };
 }
 
@@ -220,28 +303,65 @@ export function groupByJournalNo(rows: EnrichedTransaction[]): JournalGroup[] {
 
   const groups: JournalGroup[] = [];
   for (const [journal_no, groupRows] of orderMap) {
-    const primary = groupRows.find((r) => !r.is_admin_fee) ?? groupRows[0];
-    const total_debit = groupRows
-      .filter((r) => r.db_cr === "D")
-      .reduce((s, r) => s + r.amount, 0);
+    const parentRows = groupRows.filter((r) => !r.is_admin_fee);
+    const feeRows = groupRows.filter((r) => r.is_admin_fee);
+    const parent = parentRows[0] ?? null;
 
-    groups.push({
-      group_id: journal_no,
-      journal_no,
-      rows: groupRows,
-      primary,
-      total_debit,
-      accurate_status: primary.accurate_status,
-      sync_action: primary.sync_action,
-      display_label: primary.display_label,
-      detected_invoice_no: primary.detected_invoice_no,
-      detected_vendor: primary.detected_vendor,
-      detected_keyword: primary.detected_keyword,
-      suggested_coa: primary.suggested_coa,
-      suggested_coa_no: primary.suggested_coa_no,
-      post_date: primary.post_date,
-      db_cr: primary.db_cr,
-    });
+    // Grup induk — hanya baris non-biaya-admin. Skip kalau bucket ini
+    // isinya cuma baris biaya admin (nggak ada transaksi induk).
+    if (parent) {
+      const total_debit = parentRows
+        .filter((r) => r.db_cr === "D")
+        .reduce((s, r) => s + r.amount, 0);
+
+      groups.push({
+        group_id: journal_no,
+        journal_no,
+        rows: parentRows,
+        primary: parent,
+        total_debit,
+        accurate_status: parent.accurate_status,
+        sync_action: parent.sync_action,
+        display_label: parent.display_label,
+        detected_invoice_no: parent.detected_invoice_no,
+        detected_vendor: parent.detected_vendor,
+        detected_keyword: parent.detected_keyword,
+        suggested_coa: parent.suggested_coa,
+        suggested_coa_no: parent.suggested_coa_no,
+        post_date: parent.post_date,
+        db_cr: parent.db_cr,
+        invoice_validation: parent.invoice_validation,
+      });
+    }
+
+    // Tiap baris biaya admin jadi grup jurnal tersendiri (voucher Accurate
+    // terpisah dari transaksi induknya), tapi tetap "meminjam" payee dari
+    // transaksi induk kalau ada — biaya admin sendiri bukan nama payee yang
+    // berguna.
+    for (const feeRow of feeRows) {
+      const total_debit = feeRow.db_cr === "D" ? feeRow.amount : 0;
+
+      groups.push({
+        group_id: `admin-fee-${feeRow.id}`,
+        journal_no,
+        rows: [feeRow],
+        primary: feeRow,
+        total_debit,
+        accurate_status: feeRow.accurate_status,
+        sync_action: feeRow.sync_action,
+        display_label: feeRow.display_label,
+        detected_invoice_no: feeRow.detected_invoice_no,
+        detected_vendor: feeRow.detected_vendor,
+        detected_keyword: feeRow.detected_keyword,
+        suggested_coa: feeRow.suggested_coa,
+        suggested_coa_no: feeRow.suggested_coa_no,
+        post_date: feeRow.post_date,
+        db_cr: feeRow.db_cr,
+        invoice_validation: feeRow.invoice_validation,
+        is_admin_fee_split: true,
+        ...(parent ? { payee_override: cleanDescription(parent.description_raw) } : {}),
+      });
+    }
   }
 
   return groups;

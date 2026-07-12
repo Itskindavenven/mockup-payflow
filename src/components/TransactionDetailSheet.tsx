@@ -28,6 +28,7 @@ import {
   Terminal,
   Loader2,
   ChevronRight,
+  XCircle,
 } from "lucide-react";
 import {
   AccurateStatus,
@@ -173,11 +174,14 @@ export function TransactionDetailSheet({
             </h3>
             <div className="space-y-2">
               {[
-                { label: "No. Invoice",   value: group.detected_invoice_no, mono: true, accent: "text-indigo-600" },
-                { label: "Vendor",        value: group.detected_vendor,     mono: false, accent: "text-emerald-600" },
-                { label: "Keyword",       value: group.detected_keyword,    mono: true },
-                { label: "Suggested COA", value: group.suggested_coa },
-                { label: "Modul",         value: group.sync_action ? ENDPOINT_MAP[group.sync_action] : null, mono: false, accent: "text-blue-600" },
+                { label: "No. Invoice",     value: group.detected_invoice_no, mono: true, accent: "text-indigo-600" },
+                { label: "Vendor",          value: group.detected_vendor,     mono: false, accent: "text-emerald-600" },
+                { label: "Keyword",         value: group.detected_keyword,    mono: true },
+                {
+                  label: "COA/Invoice",
+                  value: group.detected_invoice_no ? "Hutang Usaha (pembayaran vendor)" : group.suggested_coa,
+                },
+                { label: "Modul", value: group.sync_action ? ENDPOINT_MAP[group.sync_action] : null, mono: false, accent: "text-blue-600" },
               ].map(({ label, value, mono, accent }) => (
                 <div key={label} className="flex items-start gap-3">
                   <span className="text-xs text-zinc-400 w-36 flex-shrink-0 pt-0.5">{label}</span>
@@ -188,6 +192,34 @@ export function TransactionDetailSheet({
               ))}
             </div>
           </section>
+
+          {/* Validasi invoice — 4 sinyal wajib buat baris pembayaran vendor */}
+          {group.invoice_validation && (
+            <>
+              <Separator />
+              <section>
+                <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-3">
+                  Validasi Invoice
+                </h3>
+                <div className="space-y-1.5">
+                  {[
+                    { label: "Nomor invoice terdeteksi", ok: group.invoice_validation.invoiceNo },
+                    { label: "Nama vendor cocok",         ok: group.invoice_validation.vendorName },
+                    { label: "Nomor rekening cocok",      ok: group.invoice_validation.accountNo },
+                    { label: "Tidak ada keyword beban yang bentrok", ok: group.invoice_validation.noConflictingKeyword },
+                  ].map(({ label, ok }) => (
+                    <div key={label} className="flex items-center gap-2">
+                      {ok
+                        ? <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0" />
+                        : <XCircle size={13} className="text-amber-500 flex-shrink-0" />
+                      }
+                      <span className={`text-xs ${ok ? "text-zinc-600" : "text-amber-700"}`}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
 
           <Separator />
 
@@ -231,7 +263,7 @@ export function TransactionDetailSheet({
                   <p className="text-xs text-blue-700">
                     Push sebagai{" "}
                     <code className="font-mono bg-blue-100/60 px-1 rounded text-[10px]">{group.sync_action}</code>
-                    {" "}— {group.rows.length} baris dalam satu jurnal.
+                    {group.rows.length > 1 && <>{" "}— {group.rows.length} baris dalam satu jurnal.</>}
                   </p>
                 </div>
                 <Button
@@ -251,7 +283,10 @@ export function TransactionDetailSheet({
               <motion.section key="review" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
                 <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">Review Manual</h3>
                 <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5">
-                  <p className="text-xs text-amber-700">Tidak ada sinyal terdeteksi. Isi nomor invoice atau pilih COA untuk melanjutkan.</p>
+                  <p className="text-xs text-amber-700">
+                    {group.invoice_validation?.reason ??
+                      "Tidak ada sinyal terdeteksi. Isi nomor invoice atau pilih COA untuk melanjutkan."}
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="manual-invoice" className="text-xs text-zinc-600">Nomor Invoice (opsional)</Label>

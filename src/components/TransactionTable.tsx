@@ -119,17 +119,28 @@ function DetailCard({ group, pos, onPush, pushingId, onMouseEnter, onMouseLeave,
         )}
       </div>
 
-      {/* COA + Modul */}
+      {/* COA/Invoice + Modul */}
       <div className="px-4 py-2 border-t border-zinc-100 space-y-1">
         {[
-          { label: "COA",   value: group.suggested_coa ?? (group.detected_invoice_no ? "Hutang Usaha" : "—") },
+          {
+            label: "COA/Invoice",
+            value: group.detected_invoice_no
+              ? `${group.detected_invoice_no.split("/").pop()}${group.detected_vendor ? ` · ${group.detected_vendor}` : ""}`
+              : group.suggested_coa ?? "—",
+          },
           { label: "Modul", value: group.sync_action ? (ENDPOINT_LABEL[group.sync_action] ?? "—") : "—" },
         ].map(({ label, value }) => (
           <div key={label} className="flex items-start gap-3 text-xs">
-            <span className="text-zinc-400 w-12 flex-shrink-0">{label}</span>
+            <span className="text-zinc-400 w-16 flex-shrink-0">{label}</span>
             <span className="text-zinc-700 font-medium">{value}</span>
           </div>
         ))}
+        {group.invoice_validation?.reason && (
+          <div className="flex items-start gap-3 text-xs pt-0.5">
+            <span className="text-zinc-400 w-16 flex-shrink-0">Validasi</span>
+            <span className="text-amber-600">{group.invoice_validation.reason}</span>
+          </div>
+        )}
       </div>
 
       {/* Push action */}
@@ -185,7 +196,7 @@ const COL_HEADERS = [
   { label: "No. Invoice", cls: "w-36" },
   { label: "Keterangan",  cls: "" },
   { label: "Nominal",     cls: "w-36" },
-  { label: "COA",         cls: "w-44" },
+  { label: "COA/Invoice", cls: "w-48" },
   { label: "Status",      cls: "w-40" },
   { label: "Aksi",        cls: "w-32 text-center" },
 ];
@@ -329,14 +340,23 @@ export function TransactionTable({
                         </span>
                       </TableCell>
 
-                      {/* COA */}
+                      {/* COA/Invoice */}
                       <TableCell className="py-2.5">
                         {row.is_admin_fee ? (
                           <span className="text-xs text-amber-700">Beban Admin Bank</span>
+                        ) : row.detected_invoice_no ? (
+                          <div>
+                            <span className="text-xs text-zinc-600">
+                              {row.detected_invoice_no.split("/").pop()}
+                            </span>
+                            {row.detected_vendor ? (
+                              <p className="text-[10px] text-zinc-400 mt-0.5">{row.detected_vendor}</p>
+                            ) : (
+                              <p className="text-[10px] text-amber-500 mt-0.5">Vendor belum terdeteksi</p>
+                            )}
+                          </div>
                         ) : row.suggested_coa ? (
                           <span className="text-xs text-zinc-600">{row.suggested_coa}</span>
-                        ) : row.detected_invoice_no ? (
-                          <span className="text-xs text-zinc-400 italic">Hutang Usaha</span>
                         ) : (
                           <span className="text-xs text-zinc-300">—</span>
                         )}
@@ -353,6 +373,11 @@ export function TransactionTable({
                             {group.accurate_status === "sudah_tercatat" && journalNo && (
                               <p className="text-[10px] font-mono text-emerald-600 mt-1 leading-none">
                                 {journalNo}
+                              </p>
+                            )}
+                            {group.accurate_status === "perlu_review" && group.invoice_validation?.reason && (
+                              <p className="text-[10px] text-amber-600 mt-1 max-w-[9rem] leading-snug">
+                                {group.invoice_validation.reason}
                               </p>
                             )}
                           </div>
